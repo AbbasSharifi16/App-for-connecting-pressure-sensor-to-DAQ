@@ -16,15 +16,31 @@ import random
 import numpy as np
 import os
 import csv
+import json
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
+
+# DAQ-specific imports (uncomment based on your DAQ type)
+try:
+    import nidaqmx
+    from nidaqmx.constants import AcquisitionType
+    NI_DAQ_AVAILABLE = True
+except ImportError:
+    NI_DAQ_AVAILABLE = False
+
+try:
+    from mcculw import ul
+    from mcculw.enums import ULRange, InfoType, BoardInfo, AiInfoType
+    MCC_DAQ_AVAILABLE = True
+except ImportError:
+    MCC_DAQ_AVAILABLE = False
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QGridLayout, QPushButton, QLineEdit, QLabel, QFrame, QScrollArea,
     QGroupBox, QCheckBox, QSpinBox, QComboBox, QMessageBox, QSplitter,
     QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLayout, QFileDialog,
-    QToolButton, QMenu, QAction, QRadioButton
+    QToolButton, QMenu, QAction
 )
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal, QThread, pyqtSlot
 from PyQt5.QtGui import QPalette, QColor, QFont
@@ -57,8 +73,90 @@ class PinConfig:
         if self.calibration is None:
             self.calibration = CalibrationData()
 
-class DAQSimulator(QThread):
-    """Simulates DAQ data acquisition for testing purposes"""
+class StateManager:
+    """Manages saving and loading application state"""
+    
+    def __init__(self, config_file: str = "daq_config.json"):
+        self.config_file = config_file
+        
+    def save_state(self, pin_configs: List[PinConfig]) -> bool:
+        """Save pin configurations to file"""
+        try:
+            state_data = {
+                "version": "1.0",
+                "timestamp": datetime.now().isoformat(),
+                "pin_configs": []
+            }
+            
+            for pin_config in pin_configs:
+                pin_data = {
+                    "pin_number": pin_config.pin_number,
+                    "name": pin_config.name,
+                    "pin_type": pin_config.pin_type,
+                    "function": pin_config.function,
+                    "is_analog_input": pin_config.is_analog_input,
+                    "calibration": {
+                        "point1_physical": pin_config.calibration.point1_physical,
+                        "point1_voltage": pin_config.calibration.point1_voltage,
+                        "point2_physical": pin_config.calibration.point2_physical,
+                        "point2_voltage": pin_config.calibration.point2_voltage,
+                        "physical_unit": pin_config.calibration.physical_unit,
+                        "is_calibrated": pin_config.calibration.is_calibrated
+                    }
+                }
+                state_data["pin_configs"].append(pin_data)
+            
+            with open(self.config_file, 'w') as f:
+                json.dump(state_data, f, indent=2)
+            
+            print(f"State saved to {self.config_file}")
+            return True
+            
+        except Exception as e:
+            print(f"Error saving state: {e}")
+            return False
+    
+    def load_state(self) -> Optional[List[PinConfig]]:
+        """Load pin configurations from file"""
+        try:
+            if not os.path.exists(self.config_file):
+                print(f"No config file found at {self.config_file}")
+                return None
+            
+            with open(self.config_file, 'r') as f:
+                state_data = json.load(f)
+            
+            pin_configs = []
+            for pin_data in state_data.get("pin_configs", []):
+                calibration = CalibrationData(
+                    point1_physical=pin_data["calibration"]["point1_physical"],
+                    point1_voltage=pin_data["calibration"]["point1_voltage"],
+                    point2_physical=pin_data["calibration"]["point2_physical"],
+                    point2_voltage=pin_data["calibration"]["point2_voltage"],
+                    physical_unit=pin_data["calibration"]["physical_unit"],
+                    is_calibrated=pin_data["calibration"]["is_calibrated"]
+                )
+                
+                pin_config = PinConfig(
+                    pin_number=pin_data["pin_number"],
+                    name=pin_data["name"],
+                    pin_type=pin_data["pin_type"],
+                    function=pin_data["function"],
+                    is_analog_input=pin_data["is_analog_input"],
+                    calibration=calibration
+                )
+                pin_configs.append(pin_config)
+            
+            print(f"State loaded from {self.config_file}")
+            return pin_configs
+            
+        except Exception as e:
+            print(f"Error loading state: {e}")
+            return None
+
+class RealDAQInterface(QThread):
+    """Real DAQ interface for data acquisition"""
+    
     data_ready = pyqtSignal(int, float)  # pin_number, value
     
     def __init__(self):
@@ -67,48 +165,206 @@ class DAQSimulator(QThread):
         self.active_pins: List[int] = []
         self.sample_rate = 100  # Hz
         self.time_offset = 0
+        self.daq_type = None
+        self.device = None
+        self.task = None
+        self.board_num = 0  # For MCC DAQ
+        self.detect_daq_device()
         
+    def detect_daq_device(self):
+        """Detect available DAQ devices"""
+        print("Detecting DAQ devices...")
+        
+        # Try National Instruments DAQ
+        if NI_DAQ_AVAILABLE:
+            try:
+                import nidaqmx.system
+                system = nidaqmx.system.System.local()
+                devices = system.devices
+                if devices:
+                    self.daq_type = "NI"
+                    self.device = devices[0].name
+                    print(f"Found NI DAQ device: {self.device}")
+                    return
+            except Exception as e:
+                print(f"NI DAQ detection failed: {e}")
+        
+        # Try Measurement Computing DAQ
+        if MCC_DAQ_AVAILABLE:
+            try:
+                from mcculw import ul
+                from mcculw.enums import InfoType, BoardInfo
+                # Check if board 0 exists
+                try:
+                    board_name = ul.get_board_name(self.board_num)
+                    self.daq_type = "MCC"
+                    self.device = board_name
+                    print(f"Found MCC DAQ device: {self.device}")
+                    return
+                except:
+                    pass
+            except Exception as e:
+                print(f"MCC DAQ detection failed: {e}")
+        
+        # If no real DAQ found, fall back to simulation
+        print("No real DAQ device detected. Available options:")
+        print("1. Install NI-DAQmx driver and 'pip install nidaqmx' for National Instruments devices")
+        print("2. Install MCC DAQ software and 'pip install mcculw' for Measurement Computing devices")
+        print("3. Continuing with simulation mode...")
+        self.daq_type = "SIMULATION"
+    
     def add_pin(self, pin_number: int):
         """Add a pin to active monitoring"""
         if pin_number not in self.active_pins:
             self.active_pins.append(pin_number)
+            print(f"Added pin {pin_number} to DAQ acquisition ({self.daq_type} mode)")
             
     def remove_pin(self, pin_number: int):
         """Remove a pin from active monitoring"""
         if pin_number in self.active_pins:
             self.active_pins.remove(pin_number)
+            print(f"Removed pin {pin_number} from DAQ acquisition")
             
     def start_acquisition(self):
         """Start data acquisition"""
         self.running = True
+        
+        if self.daq_type == "NI":
+            self._setup_ni_daq()
+        elif self.daq_type == "MCC":
+            self._setup_mcc_daq()
+        
         self.start()
+        print(f"Started DAQ acquisition in {self.daq_type} mode")
+        
+    def _setup_ni_daq(self):
+        """Setup National Instruments DAQ"""
+        try:
+            import nidaqmx
+            from nidaqmx.constants import AcquisitionType
+            
+            if self.task:
+                self.task.close()
+            
+            self.task = nidaqmx.Task()
+            
+            # Add analog input channels for active pins
+            for pin in self.active_pins:
+                channel_name = f"{self.device}/ai{pin-1}"  # Convert pin number to AI channel
+                self.task.ai_channels.add_ai_voltage_chan(channel_name)
+            
+            print(f"NI DAQ configured for pins: {self.active_pins}")
+            
+        except Exception as e:
+            print(f"Error setting up NI DAQ: {e}")
+            self.daq_type = "SIMULATION"
+    
+    def _setup_mcc_daq(self):
+        """Setup Measurement Computing DAQ"""
+        try:
+            from mcculw import ul
+            from mcculw.enums import ULRange, InfoType, BoardInfo
+            
+            # Configure board for analog input
+            ul.set_config(InfoType.BOARDINFO, self.board_num, 0, BoardInfo.ADRES, 16)
+            print(f"MCC DAQ configured for pins: {self.active_pins}")
+            
+        except Exception as e:
+            print(f"Error setting up MCC DAQ: {e}")
+            self.daq_type = "SIMULATION"
         
     def stop_acquisition(self):
         """Stop data acquisition"""
         self.running = False
+        
+        if self.daq_type == "NI" and self.task:
+            try:
+                self.task.close()
+                self.task = None
+            except Exception as e:
+                print(f"Error closing NI DAQ task: {e}")
+        
         self.wait()
+        print("DAQ acquisition stopped")
         
     def run(self):
         """Main acquisition loop"""
         self.time_offset = time.time()
+        
         while self.running:
             current_time = time.time() - self.time_offset
             
-            for pin in self.active_pins:
-                # Simulate pressure sensor data with some noise and trends
-                base_pressure = 14.7  # Base atmospheric pressure (psi)
-                frequency = 0.1 + (pin * 0.05)  # Different frequency for each pin
-                amplitude = 2.0 + (pin * 0.5)   # Different amplitude for each pin
-                noise = random.uniform(-0.1, 0.1)
+            if self.daq_type == "NI":
+                self._read_ni_data()
+            elif self.daq_type == "MCC":
+                self._read_mcc_data()
+            else:
+                self._read_simulation_data(current_time)
                 
-                # Simulate realistic pressure sensor data (as voltage)
-                voltage = (2.5 + 
-                          0.5 * np.sin(2 * np.pi * frequency * current_time) + 
-                          noise * 0.1)  # Simulate voltage reading
+            self.msleep(int(1000 / self.sample_rate))
+    
+    def _read_ni_data(self):
+        """Read data from NI DAQ"""
+        try:
+            if self.task and self.active_pins:
+                # Read single sample from all channels
+                data = self.task.read()
+                
+                # Emit data for each pin
+                for i, pin in enumerate(self.active_pins):
+                    if isinstance(data, list) and i < len(data):
+                        voltage = data[i] if isinstance(data[i], (int, float)) else data[i][-1] if data[i] else 0.0
+                    else:
+                        voltage = data if isinstance(data, (int, float)) else 0.0
+                    
+                    self.data_ready.emit(pin, voltage)
+                    
+        except Exception as e:
+            print(f"Error reading NI DAQ data: {e}")
+            # Fall back to simulation for this read
+            self._read_simulation_data(time.time() - self.time_offset)
+    
+    def _read_mcc_data(self):
+        """Read data from MCC DAQ"""
+        try:
+            from mcculw import ul
+            from mcculw.enums import ULRange
+            
+            for pin in self.active_pins:
+                # Convert pin number to channel (0-based)
+                channel = pin - 1
+                # Read analog input
+                value = ul.a_in(self.board_num, channel, ULRange.BIP10VOLTS)
+                # Convert to voltage
+                voltage = ul.to_eng_units(self.board_num, ULRange.BIP10VOLTS, value)
                 
                 self.data_ready.emit(pin, voltage)
                 
-            self.msleep(int(1000 / self.sample_rate))
+        except Exception as e:
+            print(f"Error reading MCC DAQ data: {e}")
+            # Fall back to simulation for this read
+            self._read_simulation_data(time.time() - self.time_offset)
+    
+    def _read_simulation_data(self, current_time):
+        """Generate simulated data (fallback)"""
+        for pin in self.active_pins:
+            # Simulate pressure sensor data with some noise and trends
+            base_pressure = 14.7  # Base atmospheric pressure (psi)
+            frequency = 0.1 + (pin * 0.05)  # Different frequency for each pin
+            amplitude = 2.0 + (pin * 0.5)   # Different amplitude for each pin
+            noise = random.uniform(-0.1, 0.1)
+            
+            # Simulate realistic pressure sensor data (as voltage)
+            voltage = (2.5 + 
+                      0.5 * np.sin(2 * np.pi * frequency * current_time) + 
+                      noise * 0.1)  # Simulate voltage reading
+            
+            self.data_ready.emit(pin, voltage)
+
+# Keep DAQSimulator as an alias for backward compatibility
+class DAQSimulator(RealDAQInterface):
+    """Backward compatibility alias"""
+    pass
 
 class DataRecorder:
     """Class to handle CSV data recording"""
@@ -442,8 +698,8 @@ class CalibrationDialog(QDialog):
             is_calibrated=self.enable_calibration.isChecked()
         )
 
-class PinButton(QRadioButton):
-    """Custom radio button representing a DAQ pin"""
+class PinButton(QCheckBox):
+    """Custom checkbox representing a DAQ pin"""
     
     def __init__(self, pin_config: PinConfig):
         super().__init__()
@@ -459,62 +715,52 @@ class PinButton(QRadioButton):
         
         if self.pin_config.is_analog_input:
             self.setStyleSheet("""
-                QRadioButton {
+                QCheckBox {
                     background-color: transparent;
                     border: none;
                     font-weight: bold;
                     font-size: 9px;
-                    text-align: center;
-                    padding: 5px;
                     color: #2196F3;
+                    spacing: 10px;
                 }
-                QRadioButton:hover {
+                QCheckBox:hover {
                     color: #1976D2;
                 }
-                QRadioButton::indicator {
+                QCheckBox::indicator {
                     width: 18px;
                     height: 18px;
-                    border-radius: 9px;
                     border: 2px solid #2196F3;
                     background-color: white;
-                    margin: 2px;
-                    position: absolute;
-                    top: 5px;
-                    left: 5px;
+                    border-radius: 3px;
                 }
-                QRadioButton::indicator:checked {
+                QCheckBox::indicator:checked {
                     background-color: #2196F3;
                     border: 2px solid #1976D2;
                 }
-                QRadioButton::indicator:hover {
+                QCheckBox::indicator:hover {
                     border: 2px solid #1976D2;
                 }
             """)
         else:
             self.setStyleSheet("""
-                QRadioButton {
+                QCheckBox {
                     background-color: transparent;
                     border: none;
                     font-size: 8px;
                     color: #999;
-                    text-align: center;
-                    padding: 5px;
+                    spacing: 10px;
                 }
-                QRadioButton:disabled {
+                QCheckBox:disabled {
                     color: #ccc;
                 }
-                QRadioButton::indicator {
+                QCheckBox::indicator {
                     width: 14px;
                     height: 14px;
-                    border-radius: 7px;
                     border: 2px solid #ccc;
                     background-color: #f5f5f5;
-                    margin: 2px;
-                    position: absolute;
-                    top: 5px;
-                    left: 5px;
+                    border-radius: 3px;
                 }
-                QRadioButton::indicator:disabled {
+                QCheckBox::indicator:disabled {
                     background-color: #eeeeee;
                     border: 2px solid #ddd;
                 }
@@ -527,34 +773,29 @@ class PinButton(QRadioButton):
         if self.pin_config.is_analog_input:
             if monitoring:
                 self.setStyleSheet("""
-                    QRadioButton {
+                    QCheckBox {
                         background-color: transparent;
                         border: none;
                         font-weight: bold;
                         font-size: 9px;
                         color: #4CAF50;
-                        text-align: center;
-                        padding: 5px;
+                        spacing: 10px;
                     }
-                    QRadioButton:hover {
+                    QCheckBox:hover {
                         color: #388E3C;
                     }
-                    QRadioButton::indicator {
+                    QCheckBox::indicator {
                         width: 18px;
                         height: 18px;
-                        border-radius: 9px;
                         border: 2px solid #4CAF50;
                         background-color: white;
-                        margin: 2px;
-                        position: absolute;
-                        top: 5px;
-                        left: 5px;
+                        border-radius: 3px;
                     }
-                    QRadioButton::indicator:checked {
+                    QCheckBox::indicator:checked {
                         background-color: #4CAF50;
                         border: 2px solid #388E3C;
                     }
-                    QRadioButton::indicator:hover {
+                    QCheckBox::indicator:hover {
                         border: 2px solid #388E3C;
                     }
                 """)
@@ -672,6 +913,9 @@ class PinNameEditor(QWidget):
                 if self.pin_buttons and pin_number in self.pin_buttons:
                     button = self.pin_buttons[pin_number]
                     button.setText(f"Pin {pin_config.pin_number}\n{pin_config.name}")
+                # Save state after name update
+                if hasattr(self.parent(), 'save_state'):
+                    self.parent().save_state()
                 break
                 
     def open_calibration_dialog(self, pin_number: int):
@@ -682,6 +926,9 @@ class PinNameEditor(QWidget):
             if dialog.exec_() == QDialog.Accepted:
                 pin_config.calibration = dialog.get_calibration_data()
                 self.update_calibration_button_style(pin_number)
+                # Save state after calibration update
+                if hasattr(self.parent(), 'save_state'):
+                    self.parent().save_state()
                 
     def update_calibration_button_style(self, pin_number: int):
         """Update calibration button style based on calibration status"""
@@ -1025,12 +1272,23 @@ class DAQMonitorApp(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.pin_configs = self.create_pin_configs()
+        self.state_manager = StateManager()
+        self.pin_configs = self.load_or_create_pin_configs()
         self.pin_buttons: Dict[int, PinButton] = {}
         self.daq_simulator = DAQSimulator()
         self.data_recorder = DataRecorder()
         self.setup_ui()
         self.setup_connections()
+        
+    def load_or_create_pin_configs(self) -> List[PinConfig]:
+        """Load pin configurations from file or create defaults"""
+        # Try to load saved state first
+        loaded_configs = self.state_manager.load_state()
+        if loaded_configs:
+            return loaded_configs
+        
+        # If no saved state, create default configurations
+        return self.create_pin_configs()
         
     def create_pin_configs(self) -> List[PinConfig]:
         """Create pin configurations based on DAQ specifications"""
@@ -1150,11 +1408,30 @@ class DAQMonitorApp(QMainWindow):
             }
         """)
         
+        # Save state button
+        self.save_button = QPushButton("Save Settings")
+        self.save_button.setFixedSize(140, 40)
+        self.save_button.clicked.connect(self.save_state)
+        self.save_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+        """)
+        
         self.recording_status = QLabel("Ready to record")
         self.recording_status.setStyleSheet("color: #666; font-style: italic; font-size: 12px;")
         self.recording_status.setWordWrap(True)
         
         recording_layout.addWidget(self.record_button)
+        recording_layout.addWidget(self.save_button)
         recording_layout.addWidget(self.recording_status)
         recording_layout.addStretch()
         
@@ -1450,8 +1727,15 @@ class DAQMonitorApp(QMainWindow):
                 event.ignore()
                 return
         
+        # Save application state
+        self.save_state()
+        
         self.daq_simulator.stop_acquisition()
         event.accept()
+        
+    def save_state(self):
+        """Save current application state"""
+        self.state_manager.save_state(self.pin_configs)
 
 def main():
     """Main application entry point"""

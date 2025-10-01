@@ -1,0 +1,606 @@
+{
+  "version": "1.0",
+  "timestamp": "2025-10-01T15:41:47.549148",
+  "pin_configs": [
+    {
+      "pin_number": 1,
+      "name": "P1",
+      "pin_type": "Analog Input",
+      "function": "CH0 IN",
+      "is_analog_input": true,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 9.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 2,
+      "name": "P2",
+      "pin_type": "Analog Input",
+      "function": "CH1 IN",
+      "is_analog_input": true,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 6.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 3,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 4,
+      "name": "Pressure_3",
+      "pin_type": "Analog Input",
+      "function": "CH2 IN",
+      "is_analog_input": true,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 5,
+      "name": "Pressure_4",
+      "pin_type": "Analog Input",
+      "function": "CH3 IN",
+      "is_analog_input": true,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 6,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 7,
+      "name": "Pressure_5",
+      "pin_type": "Analog Input",
+      "function": "CH4 IN",
+      "is_analog_input": true,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 8,
+      "name": "Pressure_6",
+      "pin_type": "Analog Input",
+      "function": "CH5 IN",
+      "is_analog_input": true,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 9,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 10,
+      "name": "Pressure_7",
+      "pin_type": "Analog Input",
+      "function": "CH6 IN",
+      "is_analog_input": true,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 11,
+      "name": "Pressure_8",
+      "pin_type": "Analog Input",
+      "function": "CH7 IN",
+      "is_analog_input": true,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 12,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 13,
+      "name": "AO0",
+      "pin_type": "Analog Output",
+      "function": "D/A OUT 0",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 14,
+      "name": "AO1",
+      "pin_type": "Analog Output",
+      "function": "D/A OUT 1",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 15,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 16,
+      "name": "Reserved",
+      "pin_type": "Reserved",
+      "function": "Reserved",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 17,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 18,
+      "name": "Trigger",
+      "pin_type": "Digital Input",
+      "function": "TRIG_IN",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 19,
+      "name": "Sync",
+      "pin_type": "Digital I/O",
+      "function": "SYNC",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 20,
+      "name": "Counter",
+      "pin_type": "Digital Input",
+      "function": "CTR",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 21,
+      "name": "PA0",
+      "pin_type": "Digital I/O",
+      "function": "Port A0",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 22,
+      "name": "PA1",
+      "pin_type": "Digital I/O",
+      "function": "Port A1",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 23,
+      "name": "PA2",
+      "pin_type": "Digital I/O",
+      "function": "Port A2",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 24,
+      "name": "PA3",
+      "pin_type": "Digital I/O",
+      "function": "Port A3",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 25,
+      "name": "PA4",
+      "pin_type": "Digital I/O",
+      "function": "Port A4",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 26,
+      "name": "PA5",
+      "pin_type": "Digital I/O",
+      "function": "Port A5",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 27,
+      "name": "PA6",
+      "pin_type": "Digital I/O",
+      "function": "Port A6",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 28,
+      "name": "PA7",
+      "pin_type": "Digital I/O",
+      "function": "Port A7",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 29,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 30,
+      "name": "Power",
+      "pin_type": "Power Output",
+      "function": "+VO",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 31,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 32,
+      "name": "PB0",
+      "pin_type": "Digital I/O",
+      "function": "Port B0",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 33,
+      "name": "PB1",
+      "pin_type": "Digital I/O",
+      "function": "Port B1",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 34,
+      "name": "PB2",
+      "pin_type": "Digital I/O",
+      "function": "Port B2",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 35,
+      "name": "PB3",
+      "pin_type": "Digital I/O",
+      "function": "Port B3",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 36,
+      "name": "PB4",
+      "pin_type": "Digital I/O",
+      "function": "Port B4",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 37,
+      "name": "PB5",
+      "pin_type": "Digital I/O",
+      "function": "Port B5",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 38,
+      "name": "PB6",
+      "pin_type": "Digital I/O",
+      "function": "Port B6",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 39,
+      "name": "PB7",
+      "pin_type": "Digital I/O",
+      "function": "Port B7",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    },
+    {
+      "pin_number": 40,
+      "name": "GND",
+      "pin_type": "Ground",
+      "function": "Ground",
+      "is_analog_input": false,
+      "calibration": {
+        "point1_physical": 0.0,
+        "point1_voltage": 0.0,
+        "point2_physical": 1.0,
+        "point2_voltage": 5.0,
+        "physical_unit": "m",
+        "is_calibrated": false
+      }
+    }
+  ]
+}

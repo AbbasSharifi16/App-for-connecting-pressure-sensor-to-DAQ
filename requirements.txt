@@ -5,3 +5,13 @@ PyQt5>=5.15.0
 pyqtgraph>=0.12.0
 numpy>=1.21.0
 matplotlib>=3.5.0
+
+# DAQ Libraries (install based on your DAQ device)
+# For National Instruments DAQ devices:
+# nidaqmx>=0.6.4
+
+# For Measurement Computing DAQ devices:
+# mcculw>=1.0.0
+
+# For generic USB DAQ devices:
+# pyusb>=1.2.1

@@ -50,7 +50,44 @@ The application supports your DAQ configuration:
 - **Pins 1&2, 4&5, 7&8, 10&11**: Differential pairs (CH0-CH3)
 - **12-bit resolution**
 
-## 🛠️ Installation
+## DAQ Device Setup
+
+The application supports real DAQ devices and will automatically detect them. If no real DAQ is found, it will run in simulation mode.
+
+### Supported DAQ Devices
+
+#### National Instruments (NI) DAQ
+1. Install NI-DAQmx driver from [National Instruments website](https://www.ni.com/en-us/support/downloads/drivers/download.ni-daqmx.html)
+2. Install Python library:
+   ```bash
+   pip install nidaqmx
+   ```
+
+#### Measurement Computing DAQ
+1. Install MCC DAQ software from [Measurement Computing website](https://www.mccdaq.com/software-downloads)
+2. Install Python library:
+   ```bash
+   pip install mcculw
+   ```
+
+#### Generic USB DAQ
+For other USB DAQ devices, you may need device-specific drivers or use:
+```bash
+pip install pyusb
+```
+
+### DAQ Connection
+1. Connect your DAQ device via USB
+2. Ensure drivers are properly installed
+3. Run the application - it will automatically detect and configure your DAQ
+4. The application will display which DAQ type was detected in the console
+
+### Pin Mapping
+- Application pins 1-8 map to DAQ analog input channels AI0-AI7
+- Ensure your pressure sensors are connected to the corresponding analog input channels
+- Configure voltage range in your DAQ software if needed (typically 0-5V or ±10V)
+
+## Installation
 
 ### Ubuntu Setup
 
