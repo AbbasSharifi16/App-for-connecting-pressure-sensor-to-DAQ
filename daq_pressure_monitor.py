@@ -17,7 +17,20 @@ import numpy as np
 import os
 import csv
 import json
-from ctypes import WinDLL, c_int, c_double, POINTER, byref
+import platform
+from ctypes import c_int, c_double, POINTER, byref
+# Platform-specific imports
+if platform.system() == "Windows":
+    try:
+        from ctypes import WinDLL
+        WINDOWS_PLATFORM = True
+    except ImportError:
+        WINDOWS_PLATFORM = False
+        WinDLL = None
+else:
+    WINDOWS_PLATFORM = False
+    WinDLL = None
+    
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
@@ -207,11 +220,53 @@ class RealDAQInterface(QThread):
             except Exception as e:
                 print(f"MCC DAQ detection failed: {e}")
         
+        # Try generic USB DAQ devices (Linux/cross-platform)
+        try:
+            import usb.core
+            import usb.util
+            # Look for common DAQ device vendor IDs
+            daq_vendors = [
+                0x0683,  # Measurement Computing
+                0x3923,  # National Instruments  
+                0x13d3,  # Advantech
+                0x10c4,  # Silicon Labs (common USB-serial)
+            ]
+            
+            for vendor_id in daq_vendors:
+                devices = usb.core.find(find_all=True, idVendor=vendor_id)
+                for device in devices:
+                    self.daq_type = "USB"
+                    self.device = f"USB DAQ (VID: {vendor_id:04x}, PID: {device.idProduct:04x})"
+                    print(f"Found USB DAQ device: {self.device}")
+                    return
+        except ImportError:
+            print("pyusb not available for USB DAQ detection")
+        except Exception as e:
+            print(f"USB DAQ detection failed: {e}")
+            
+        # Try serial DAQ devices
+        try:
+            import serial.tools.list_ports
+            ports = serial.tools.list_ports.comports()
+            for port in ports:
+                # Look for common DAQ device descriptions
+                if any(keyword in port.description.lower() for keyword in ['daq', 'data acquisition', 'measurement']):
+                    self.daq_type = "SERIAL"
+                    self.device = f"Serial DAQ ({port.device})"
+                    print(f"Found Serial DAQ device: {self.device}")
+                    return
+        except ImportError:
+            print("pyserial not available for serial DAQ detection")
+        except Exception as e:
+            print(f"Serial DAQ detection failed: {e}")
+        
         # If no real DAQ found, fall back to simulation
         print("No real DAQ device detected. Available options:")
         print("1. Install NI-DAQmx driver and 'pip install nidaqmx' for National Instruments devices")
         print("2. Install MCC DAQ software and 'pip install mcculw' for Measurement Computing devices")
-        print("3. Continuing with simulation mode...")
+        print("3. Install 'pip install pyusb' for generic USB DAQ devices")
+        print("4. Install 'pip install pyserial' for serial DAQ devices")
+        print("5. Continuing with simulation mode...")
         self.daq_type = "SIMULATION"
     
     def add_pin(self, pin_number: int):

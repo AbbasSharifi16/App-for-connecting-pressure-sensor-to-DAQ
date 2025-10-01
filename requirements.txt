@@ -6,12 +6,12 @@ pyqtgraph>=0.12.0
 numpy>=1.21.0
 matplotlib>=3.5.0
 
-# DAQ Libraries (install based on your DAQ device)
-# For National Instruments DAQ devices:
-# nidaqmx>=0.6.4
+# DAQ Libraries - Platform specific
+# Windows DAQ support
+nidaqmx>=0.6.4; sys_platform == "win32"
+mcculw>=1.0.0; sys_platform == "win32"
 
-# For Measurement Computing DAQ devices:
-# mcculw>=1.0.0
-
-# For generic USB DAQ devices:
-# pyusb>=1.2.1
+# Cross-platform DAQ support
+pyusb>=1.2.1
+pyserial>=3.5
+hidapi>=0.12.0
