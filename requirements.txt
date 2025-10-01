@@ -1,0 +1,7 @@
+# DAQ Pressure Sensor Monitor Dependencies
+# Install with: pip install -r requirements.txt
+
+PyQt5>=5.15.0
+pyqtgraph>=0.12.0
+numpy>=1.21.0
+matplotlib>=3.5.0
