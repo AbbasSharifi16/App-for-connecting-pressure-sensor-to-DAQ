@@ -460,28 +460,27 @@ class PinButton(QRadioButton):
         if self.pin_config.is_analog_input:
             self.setStyleSheet("""
                 QRadioButton {
-                    background-color: #e8f4fd;
-                    border: 2px solid #2196F3;
-                    border-radius: 6px;
+                    background-color: transparent;
+                    border: none;
                     font-weight: bold;
                     font-size: 9px;
                     text-align: center;
                     padding: 5px;
+                    color: #2196F3;
                 }
                 QRadioButton:hover {
-                    background-color: #bbdefb;
-                    border: 2px solid #1976D2;
-                }
-                QRadioButton:pressed {
-                    background-color: #90caf9;
+                    color: #1976D2;
                 }
                 QRadioButton::indicator {
-                    width: 15px;
-                    height: 15px;
-                    border-radius: 8px;
+                    width: 18px;
+                    height: 18px;
+                    border-radius: 9px;
                     border: 2px solid #2196F3;
                     background-color: white;
                     margin: 2px;
+                    position: absolute;
+                    top: 5px;
+                    left: 5px;
                 }
                 QRadioButton::indicator:checked {
                     background-color: #2196F3;
@@ -494,28 +493,30 @@ class PinButton(QRadioButton):
         else:
             self.setStyleSheet("""
                 QRadioButton {
-                    background-color: #f5f5f5;
-                    border: 2px solid #9e9e9e;
-                    border-radius: 6px;
+                    background-color: transparent;
+                    border: none;
                     font-size: 8px;
-                    color: #666;
+                    color: #999;
                     text-align: center;
                     padding: 5px;
                 }
                 QRadioButton:disabled {
-                    background-color: #eeeeee;
-                    color: #999;
+                    color: #ccc;
                 }
                 QRadioButton::indicator {
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 6px;
-                    border: 2px solid #9e9e9e;
+                    width: 14px;
+                    height: 14px;
+                    border-radius: 7px;
+                    border: 2px solid #ccc;
                     background-color: #f5f5f5;
+                    margin: 2px;
+                    position: absolute;
+                    top: 5px;
+                    left: 5px;
                 }
                 QRadioButton::indicator:disabled {
                     background-color: #eeeeee;
-                    border: 2px solid #ccc;
+                    border: 2px solid #ddd;
                 }
             """)
             self.setEnabled(False)
@@ -527,33 +528,34 @@ class PinButton(QRadioButton):
             if monitoring:
                 self.setStyleSheet("""
                     QRadioButton {
-                        background-color: #4CAF50;
-                        border: 2px solid #388E3C;
-                        border-radius: 6px;
+                        background-color: transparent;
+                        border: none;
                         font-weight: bold;
                         font-size: 9px;
-                        color: white;
+                        color: #4CAF50;
                         text-align: center;
                         padding: 5px;
                     }
                     QRadioButton:hover {
-                        background-color: #66BB6A;
-                        border: 2px solid #2E7D32;
+                        color: #388E3C;
                     }
                     QRadioButton::indicator {
-                        width: 15px;
-                        height: 15px;
-                        border-radius: 8px;
-                        border: 2px solid white;
-                        background-color: #4CAF50;
+                        width: 18px;
+                        height: 18px;
+                        border-radius: 9px;
+                        border: 2px solid #4CAF50;
+                        background-color: white;
                         margin: 2px;
+                        position: absolute;
+                        top: 5px;
+                        left: 5px;
                     }
                     QRadioButton::indicator:checked {
-                        background-color: white;
+                        background-color: #4CAF50;
                         border: 2px solid #388E3C;
                     }
                     QRadioButton::indicator:hover {
-                        border: 2px solid #2E7D32;
+                        border: 2px solid #388E3C;
                     }
                 """)
             else:
