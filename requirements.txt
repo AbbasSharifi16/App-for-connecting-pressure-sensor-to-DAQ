@@ -1,4 +1,4 @@
-# DAQ Pressure Sensor Monitor Dependencies
+# DAQ Pressure Sensor Monitor Dependencies (Ubuntu/Linux)
 # Install with: pip install -r requirements.txt
 
 PyQt5>=5.15.0
@@ -6,12 +6,7 @@ pyqtgraph>=0.12.0
 numpy>=1.21.0
 matplotlib>=3.5.0
 
-# DAQ Libraries - Platform specific
-# Windows DAQ support
-nidaqmx>=0.6.4; sys_platform == "win32"
-mcculw>=1.0.0; sys_platform == "win32"
-
-# Cross-platform DAQ support
+# Ubuntu/Linux DAQ support
 pyusb>=1.2.1
 pyserial>=3.5
 hidapi>=0.12.0

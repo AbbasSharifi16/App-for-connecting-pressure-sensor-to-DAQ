@@ -17,38 +17,24 @@ import numpy as np
 import os
 import csv
 import json
-import platform
 from ctypes import c_int, c_double, POINTER, byref
-# Platform-specific imports
-if platform.system() == "Windows":
-    try:
-        from ctypes import WinDLL
-        WINDOWS_PLATFORM = True
-    except ImportError:
-        WINDOWS_PLATFORM = False
-        WinDLL = None
-else:
-    WINDOWS_PLATFORM = False
-    WinDLL = None
-    
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
 
-# DAQ-specific imports (uncomment based on your DAQ type)
+# DAQ-specific imports (Ubuntu/Linux only)
 try:
-    import nidaqmx
-    from nidaqmx.constants import AcquisitionType
-    NI_DAQ_AVAILABLE = True
+    import usb.core
+    import usb.util
+    USB_DAQ_AVAILABLE = True
 except ImportError:
-    NI_DAQ_AVAILABLE = False
+    USB_DAQ_AVAILABLE = False
 
 try:
-    from mcculw import ul
-    from mcculw.enums import ULRange, InfoType, BoardInfo, AiInfoType
-    MCC_DAQ_AVAILABLE = True
+    import serial.tools.list_ports
+    SERIAL_DAQ_AVAILABLE = True
 except ImportError:
-    MCC_DAQ_AVAILABLE = False
+    SERIAL_DAQ_AVAILABLE = False
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, 
     QGridLayout, QPushButton, QLineEdit, QLabel, QFrame, QScrollArea,
@@ -186,87 +172,49 @@ class RealDAQInterface(QThread):
         self.detect_daq_device()
         
     def detect_daq_device(self):
-        """Detect available DAQ devices"""
-        print("Detecting DAQ devices...")
+        """Detect available DAQ devices (Ubuntu/Linux only)"""
+        print("Detecting DAQ devices on Linux...")
         
-        # Try National Instruments DAQ
-        if NI_DAQ_AVAILABLE:
+        # Try generic USB DAQ devices
+        if USB_DAQ_AVAILABLE:
             try:
-                import nidaqmx.system
-                system = nidaqmx.system.System.local()
-                devices = system.devices
-                if devices:
-                    self.daq_type = "NI"
-                    self.device = devices[0].name
-                    print(f"Found NI DAQ device: {self.device}")
-                    return
+                # Look for common DAQ device vendor IDs
+                daq_vendors = [
+                    0x0683,  # Measurement Computing
+                    0x3923,  # National Instruments  
+                    0x13d3,  # Advantech
+                    0x10c4,  # Silicon Labs (common USB-serial)
+                ]
+                
+                for vendor_id in daq_vendors:
+                    devices = usb.core.find(find_all=True, idVendor=vendor_id)
+                    for device in devices:
+                        self.daq_type = "USB"
+                        self.device = f"USB DAQ (VID: {vendor_id:04x}, PID: {device.idProduct:04x})"
+                        print(f"Found USB DAQ device: {self.device}")
+                        return
             except Exception as e:
-                print(f"NI DAQ detection failed: {e}")
-        
-        # Try Measurement Computing DAQ
-        if MCC_DAQ_AVAILABLE:
-            try:
-                from mcculw import ul
-                from mcculw.enums import InfoType, BoardInfo
-                # Check if board 0 exists
-                try:
-                    board_name = ul.get_board_name(self.board_num)
-                    self.daq_type = "MCC"
-                    self.device = board_name
-                    print(f"Found MCC DAQ device: {self.device}")
-                    return
-                except:
-                    pass
-            except Exception as e:
-                print(f"MCC DAQ detection failed: {e}")
-        
-        # Try generic USB DAQ devices (Linux/cross-platform)
-        try:
-            import usb.core
-            import usb.util
-            # Look for common DAQ device vendor IDs
-            daq_vendors = [
-                0x0683,  # Measurement Computing
-                0x3923,  # National Instruments  
-                0x13d3,  # Advantech
-                0x10c4,  # Silicon Labs (common USB-serial)
-            ]
-            
-            for vendor_id in daq_vendors:
-                devices = usb.core.find(find_all=True, idVendor=vendor_id)
-                for device in devices:
-                    self.daq_type = "USB"
-                    self.device = f"USB DAQ (VID: {vendor_id:04x}, PID: {device.idProduct:04x})"
-                    print(f"Found USB DAQ device: {self.device}")
-                    return
-        except ImportError:
-            print("pyusb not available for USB DAQ detection")
-        except Exception as e:
-            print(f"USB DAQ detection failed: {e}")
-            
+                print(f"USB DAQ detection failed: {e}")
+                
         # Try serial DAQ devices
-        try:
-            import serial.tools.list_ports
-            ports = serial.tools.list_ports.comports()
-            for port in ports:
-                # Look for common DAQ device descriptions
-                if any(keyword in port.description.lower() for keyword in ['daq', 'data acquisition', 'measurement']):
-                    self.daq_type = "SERIAL"
-                    self.device = f"Serial DAQ ({port.device})"
-                    print(f"Found Serial DAQ device: {self.device}")
-                    return
-        except ImportError:
-            print("pyserial not available for serial DAQ detection")
-        except Exception as e:
-            print(f"Serial DAQ detection failed: {e}")
+        if SERIAL_DAQ_AVAILABLE:
+            try:
+                ports = serial.tools.list_ports.comports()
+                for port in ports:
+                    # Look for common DAQ device descriptions
+                    if any(keyword in port.description.lower() for keyword in ['daq', 'data acquisition', 'measurement']):
+                        self.daq_type = "SERIAL"
+                        self.device = f"Serial DAQ ({port.device})"
+                        print(f"Found Serial DAQ device: {self.device}")
+                        return
+            except Exception as e:
+                print(f"Serial DAQ detection failed: {e}")
         
         # If no real DAQ found, fall back to simulation
         print("No real DAQ device detected. Available options:")
-        print("1. Install NI-DAQmx driver and 'pip install nidaqmx' for National Instruments devices")
-        print("2. Install MCC DAQ software and 'pip install mcculw' for Measurement Computing devices")
-        print("3. Install 'pip install pyusb' for generic USB DAQ devices")
-        print("4. Install 'pip install pyserial' for serial DAQ devices")
-        print("5. Continuing with simulation mode...")
+        print("1. Install 'pip install pyusb' for generic USB DAQ devices")
+        print("2. Install 'pip install pyserial' for serial DAQ devices")
+        print("3. Continuing with simulation mode...")
         self.daq_type = "SIMULATION"
     
     def add_pin(self, pin_number: int):
@@ -350,55 +298,33 @@ class RealDAQInterface(QThread):
         while self.running:
             current_time = time.time() - self.time_offset
             
-            if self.daq_type == "NI":
-                self._read_ni_data()
-            elif self.daq_type == "MCC":
-                self._read_mcc_data()
+            if self.daq_type == "USB":
+                self._read_usb_data()
+            elif self.daq_type == "SERIAL":
+                self._read_serial_data()
             else:
                 self._read_simulation_data(current_time)
                 
             self.msleep(int(1000 / self.sample_rate))
     
-    def _read_ni_data(self):
-        """Read data from NI DAQ"""
+    def _read_usb_data(self):
+        """Read data from USB DAQ"""
         try:
-            if self.task and self.active_pins:
-                # Read single sample from all channels
-                data = self.task.read()
-                
-                # Emit data for each pin
-                for i, pin in enumerate(self.active_pins):
-                    if isinstance(data, list) and i < len(data):
-                        voltage = data[i] if isinstance(data[i], (int, float)) else data[i][-1] if data[i] else 0.0
-                    else:
-                        voltage = data if isinstance(data, (int, float)) else 0.0
-                    
-                    self.data_ready.emit(pin, voltage)
-                    
+            # For now, simulate since we need device-specific protocols
+            # In real implementation, this would use device-specific commands
+            self._read_simulation_data(time.time() - self.time_offset)
         except Exception as e:
-            print(f"Error reading NI DAQ data: {e}")
-            # Fall back to simulation for this read
+            print(f"Error reading USB DAQ data: {e}")
             self._read_simulation_data(time.time() - self.time_offset)
     
-    def _read_mcc_data(self):
-        """Read data from MCC DAQ"""
+    def _read_serial_data(self):
+        """Read data from Serial DAQ"""
         try:
-            from mcculw import ul
-            from mcculw.enums import ULRange
-            
-            for pin in self.active_pins:
-                # Convert pin number to channel (0-based)
-                channel = pin - 1
-                # Read analog input
-                value = ul.a_in(self.board_num, channel, ULRange.BIP10VOLTS)
-                # Convert to voltage
-                voltage = ul.to_eng_units(self.board_num, ULRange.BIP10VOLTS, value)
-                
-                self.data_ready.emit(pin, voltage)
-                
+            # For now, simulate since we need device-specific protocols
+            # In real implementation, this would use serial commands
+            self._read_simulation_data(time.time() - self.time_offset)
         except Exception as e:
-            print(f"Error reading MCC DAQ data: {e}")
-            # Fall back to simulation for this read
+            print(f"Error reading Serial DAQ data: {e}")
             self._read_simulation_data(time.time() - self.time_offset)
     
     def _read_simulation_data(self, current_time):
