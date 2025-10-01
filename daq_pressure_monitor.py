@@ -259,13 +259,15 @@ class CalibrationDialog(QDialog):
         """Setup the calibration dialog UI"""
         self.setWindowTitle(f"Calibrate {self.pin_config.name} (Pin {self.pin_config.pin_number})")
         self.setModal(True)
-        self.resize(400, 300)
+        self.resize(500, 400)
+        self.setMinimumSize(450, 350)
         
         layout = QVBoxLayout(self)
         
         # Title
         title = QLabel(f"Linear Calibration for {self.pin_config.name}")
-        title.setFont(QFont("Arial", 12, QFont.Bold))
+        title.setFont(QFont("Arial", 14, QFont.Bold))
+        title.setStyleSheet("color: #333; margin-bottom: 10px;")
         layout.addWidget(title)
         
         # Instructions
@@ -274,6 +276,8 @@ class CalibrationDialog(QDialog):
             "between voltage readings and physical measurements."
         )
         instructions.setWordWrap(True)
+        instructions.setFont(QFont("Arial", 10))
+        instructions.setStyleSheet("color: #666; margin-bottom: 15px;")
         layout.addWidget(instructions)
         
         # Calibration form
@@ -282,16 +286,22 @@ class CalibrationDialog(QDialog):
         # Physical unit
         self.unit_edit = QLineEdit()
         self.unit_edit.setPlaceholderText("e.g., m, psi, Pa, etc.")
+        self.unit_edit.setMinimumHeight(30)
+        self.unit_edit.setFont(QFont("Arial", 10))
         form_layout.addRow("Physical Unit:", self.unit_edit)
         
         # First calibration point
         point1_group = QGroupBox("Calibration Point 1")
+        point1_group.setFont(QFont("Arial", 10, QFont.Bold))
         point1_layout = QHBoxLayout(point1_group)
+        point1_layout.setSpacing(10)
         
         self.point1_physical = QDoubleSpinBox()
         self.point1_physical.setDecimals(3)
         self.point1_physical.setRange(-999999, 999999)
         self.point1_physical.setSuffix(" (physical)")
+        self.point1_physical.setMinimumHeight(30)
+        self.point1_physical.setFont(QFont("Arial", 10))
         
         point1_layout.addWidget(QLabel("Physical Value:"))
         point1_layout.addWidget(self.point1_physical)
@@ -302,6 +312,8 @@ class CalibrationDialog(QDialog):
         self.point1_voltage.setDecimals(3)
         self.point1_voltage.setRange(-999999, 999999)
         self.point1_voltage.setSuffix(" V")
+        self.point1_voltage.setMinimumHeight(30)
+        self.point1_voltage.setFont(QFont("Arial", 10))
         
         point1_layout.addWidget(QLabel("Voltage:"))
         point1_layout.addWidget(self.point1_voltage)
@@ -310,12 +322,16 @@ class CalibrationDialog(QDialog):
         
         # Second calibration point
         point2_group = QGroupBox("Calibration Point 2")
+        point2_group.setFont(QFont("Arial", 10, QFont.Bold))
         point2_layout = QHBoxLayout(point2_group)
+        point2_layout.setSpacing(10)
         
         self.point2_physical = QDoubleSpinBox()
         self.point2_physical.setDecimals(3)
         self.point2_physical.setRange(-999999, 999999)
         self.point2_physical.setSuffix(" (physical)")
+        self.point2_physical.setMinimumHeight(30)
+        self.point2_physical.setFont(QFont("Arial", 10))
         
         point2_layout.addWidget(QLabel("Physical Value:"))
         point2_layout.addWidget(self.point2_physical)
@@ -326,6 +342,8 @@ class CalibrationDialog(QDialog):
         self.point2_voltage.setDecimals(3)
         self.point2_voltage.setRange(-999999, 999999)
         self.point2_voltage.setSuffix(" V")
+        self.point2_voltage.setMinimumHeight(30)
+        self.point2_voltage.setFont(QFont("Arial", 10))
         
         point2_layout.addWidget(QLabel("Voltage:"))
         point2_layout.addWidget(self.point2_voltage)
@@ -334,12 +352,31 @@ class CalibrationDialog(QDialog):
         
         # Enable calibration checkbox
         self.enable_calibration = QCheckBox("Enable Calibration")
+        self.enable_calibration.setFont(QFont("Arial", 10, QFont.Bold))
+        self.enable_calibration.setStyleSheet("color: #333; margin: 10px 0;")
         layout.addWidget(self.enable_calibration)
         
         # Preview of calibration equation
+        equation_title = QLabel("Calibration Equation Preview:")
+        equation_title.setFont(QFont("Arial", 10, QFont.Bold))
+        equation_title.setStyleSheet("color: #333; margin-top: 10px;")
+        layout.addWidget(equation_title)
+        
         self.equation_label = QLabel()
-        self.equation_label.setStyleSheet("font-family: monospace; background-color: #f0f0f0; padding: 5px; border-radius: 3px;")
-        layout.addWidget(QLabel("Calibration Equation Preview:"))
+        self.equation_label.setStyleSheet("""
+            QLabel {
+                font-family: 'Courier New', monospace;
+                background-color: #f8f8f8;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+                padding: 10px;
+                margin: 5px 0;
+                font-size: 10px;
+                line-height: 1.4;
+            }
+        """)
+        self.equation_label.setWordWrap(True)
+        self.equation_label.setMinimumHeight(60)
         layout.addWidget(self.equation_label)
         
         # Connect signals for real-time preview
@@ -417,19 +454,22 @@ class PinButton(QPushButton):
     def setup_button(self):
         """Setup button appearance and properties"""
         self.setText(f"Pin {self.pin_config.pin_number}\n{self.pin_config.name}")
-        self.setFixedSize(80, 60)
+        self.setFixedSize(100, 70)  # Increased size
+        self.setFont(QFont("Arial", 9, QFont.Bold))
         
         if self.pin_config.is_analog_input:
             self.setStyleSheet("""
                 QPushButton {
                     background-color: #e8f4fd;
                     border: 2px solid #2196F3;
-                    border-radius: 5px;
+                    border-radius: 6px;
                     font-weight: bold;
-                    font-size: 10px;
+                    font-size: 9px;
+                    text-align: center;
                 }
                 QPushButton:hover {
                     background-color: #bbdefb;
+                    border: 2px solid #1976D2;
                 }
                 QPushButton:pressed {
                     background-color: #90caf9;
@@ -440,9 +480,10 @@ class PinButton(QPushButton):
                 QPushButton {
                     background-color: #f5f5f5;
                     border: 2px solid #9e9e9e;
-                    border-radius: 5px;
-                    font-size: 10px;
+                    border-radius: 6px;
+                    font-size: 8px;
                     color: #666;
+                    text-align: center;
                 }
                 QPushButton:disabled {
                     background-color: #eeeeee;
@@ -460,13 +501,15 @@ class PinButton(QPushButton):
                     QPushButton {
                         background-color: #4CAF50;
                         border: 2px solid #388E3C;
-                        border-radius: 5px;
+                        border-radius: 6px;
                         font-weight: bold;
-                        font-size: 10px;
+                        font-size: 9px;
                         color: white;
+                        text-align: center;
                     }
                     QPushButton:hover {
                         background-color: #66BB6A;
+                        border: 2px solid #2E7D32;
                     }
                 """)
             else:
@@ -485,29 +528,65 @@ class PinNameEditor(QWidget):
     def setup_ui(self):
         """Setup the pin name editor UI"""
         layout = QVBoxLayout()
+        layout.setSpacing(8)
+        layout.setContentsMargins(5, 5, 5, 5)
         
         # Title
         title = QLabel("Pin Configuration")
         title.setFont(QFont("Arial", 12, QFont.Bold))
+        title.setStyleSheet("color: #333; margin-bottom: 5px;")
         layout.addWidget(title)
         
         # Scroll area for pin editors
         scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll.setMinimumHeight(250)
+        scroll.setMaximumHeight(350)
+        
         scroll_widget = QWidget()
         scroll_layout = QVBoxLayout(scroll_widget)
+        scroll_layout.setSpacing(5)
         
         for pin_config in self.pin_configs:
             if pin_config.is_analog_input:
                 pin_frame = QFrame()
                 pin_frame.setFrameStyle(QFrame.Box)
+                pin_frame.setStyleSheet("""
+                    QFrame {
+                        border: 1px solid #ddd;
+                        border-radius: 4px;
+                        background-color: #fafafa;
+                        margin: 2px;
+                        padding: 4px;
+                    }
+                """)
                 pin_layout = QHBoxLayout(pin_frame)
+                pin_layout.setContentsMargins(8, 6, 8, 6)
+                pin_layout.setSpacing(8)
                 
                 # Pin number label
                 pin_label = QLabel(f"Pin {pin_config.pin_number}:")
-                pin_label.setFixedWidth(60)
+                pin_label.setFixedWidth(70)
+                pin_label.setFont(QFont("Arial", 10, QFont.Bold))
+                pin_label.setStyleSheet("color: #555;")
                 
                 # Name editor
                 name_editor = QLineEdit(pin_config.name)
+                name_editor.setMinimumHeight(25)
+                name_editor.setFont(QFont("Arial", 10))
+                name_editor.setStyleSheet("""
+                    QLineEdit {
+                        border: 1px solid #ccc;
+                        border-radius: 3px;
+                        padding: 4px;
+                        background-color: white;
+                    }
+                    QLineEdit:focus {
+                        border: 2px solid #2196F3;
+                    }
+                """)
                 name_editor.textChanged.connect(
                     lambda text, pin=pin_config.pin_number: self.update_pin_name(pin, text)
                 )
@@ -515,7 +594,8 @@ class PinNameEditor(QWidget):
                 
                 # Calibration button
                 cal_button = QPushButton("Cal")
-                cal_button.setFixedSize(40, 25)
+                cal_button.setFixedSize(50, 25)
+                cal_button.setFont(QFont("Arial", 9, QFont.Bold))
                 cal_button.setToolTip(f"Calibrate sensor on pin {pin_config.pin_number}")
                 cal_button.clicked.connect(
                     lambda checked, pin=pin_config.pin_number: self.open_calibration_dialog(pin)
@@ -530,9 +610,8 @@ class PinNameEditor(QWidget):
                 pin_layout.addWidget(cal_button)
                 scroll_layout.addWidget(pin_frame)
         
+        scroll_layout.addStretch()
         scroll.setWidget(scroll_widget)
-        scroll.setWidgetResizable(True)
-        scroll.setMaximumHeight(300)
         layout.addWidget(scroll)
         
         self.setLayout(layout)
@@ -652,17 +731,19 @@ class PlotWidget(QWidget):
                 background-color: #2196F3;
                 color: white;
                 border: none;
-                padding: 5px 10px;
-                border-radius: 3px;
+                padding: 8px 15px;
+                border-radius: 5px;
                 font-weight: bold;
-                min-width: 80px;
+                font-size: 12px;
+                min-width: 100px;
+                min-height: 35px;
             }
             QToolButton:hover {
                 background-color: #1976D2;
             }
             QToolButton::menu-button {
                 border: none;
-                width: 15px;
+                width: 20px;
             }
         """)
         
@@ -951,7 +1032,8 @@ class DAQMonitorApp(QMainWindow):
     def setup_ui(self):
         """Setup the main user interface"""
         self.setWindowTitle("DAQ Pressure Sensor Monitor")
-        self.setGeometry(100, 100, 1400, 800)
+        self.setGeometry(100, 100, 1600, 900)
+        self.setMinimumSize(1200, 700)  # Allow window to be resized but set minimum size
         
         # Central widget
         central_widget = QWidget()
@@ -976,7 +1058,7 @@ class DAQMonitorApp(QMainWindow):
         main_splitter.addWidget(self.plot_widget)
         
         # Set splitter proportions
-        main_splitter.setSizes([400, 1000])
+        main_splitter.setSizes([500, 1100])  # Give more space to the plot
         
         main_layout.addWidget(main_splitter)
         
@@ -984,25 +1066,29 @@ class DAQMonitorApp(QMainWindow):
         """Create the top control bar with recording controls"""
         control_bar = QFrame()
         control_bar.setFrameStyle(QFrame.StyledPanel)
-        control_bar.setMaximumHeight(60)
+        control_bar.setMaximumHeight(80)
+        control_bar.setMinimumHeight(70)
         
         layout = QHBoxLayout(control_bar)
+        layout.setSpacing(15)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         # Recording controls
         recording_group = QGroupBox("Data Recording")
+        recording_group.setFont(QFont("Arial", 10, QFont.Bold))
         recording_layout = QHBoxLayout(recording_group)
         
         self.record_button = QPushButton("Start Recording")
-        self.record_button.setFixedSize(120, 35)
+        self.record_button.setFixedSize(140, 40)
         self.record_button.clicked.connect(self.toggle_recording)
         self.record_button.setStyleSheet("""
             QPushButton {
                 background-color: #f44336;
                 color: white;
                 border: none;
-                border-radius: 5px;
+                border-radius: 6px;
                 font-weight: bold;
-                font-size: 12px;
+                font-size: 13px;
             }
             QPushButton:hover {
                 background-color: #d32f2f;
@@ -1014,7 +1100,8 @@ class DAQMonitorApp(QMainWindow):
         """)
         
         self.recording_status = QLabel("Ready to record")
-        self.recording_status.setStyleSheet("color: #666; font-style: italic;")
+        self.recording_status.setStyleSheet("color: #666; font-style: italic; font-size: 12px;")
+        self.recording_status.setWordWrap(True)
         
         recording_layout.addWidget(self.record_button)
         recording_layout.addWidget(self.recording_status)
@@ -1024,16 +1111,51 @@ class DAQMonitorApp(QMainWindow):
         
         # Monitoring controls
         monitoring_group = QGroupBox("System Controls")
+        monitoring_group.setFont(QFont("Arial", 10, QFont.Bold))
         monitoring_layout = QHBoxLayout(monitoring_group)
         
         self.start_button = QPushButton("Start Monitoring")
         self.start_button.clicked.connect(self.start_monitoring)
-        self.start_button.setFixedSize(120, 35)
+        self.start_button.setFixedSize(140, 40)
+        self.start_button.setStyleSheet("""
+            QPushButton {
+                background-color: #4CAF50;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #45a049;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
         
         self.stop_button = QPushButton("Stop Monitoring")
         self.stop_button.clicked.connect(self.stop_monitoring)
         self.stop_button.setEnabled(False)
-        self.stop_button.setFixedSize(120, 35)
+        self.stop_button.setFixedSize(140, 40)
+        self.stop_button.setStyleSheet("""
+            QPushButton {
+                background-color: #ff9800;
+                color: white;
+                border: none;
+                border-radius: 6px;
+                font-weight: bold;
+                font-size: 13px;
+            }
+            QPushButton:hover {
+                background-color: #e68900;
+            }
+            QPushButton:disabled {
+                background-color: #cccccc;
+                color: #666666;
+            }
+        """)
         
         monitoring_layout.addWidget(self.start_button)
         monitoring_layout.addWidget(self.stop_button)
@@ -1047,15 +1169,33 @@ class DAQMonitorApp(QMainWindow):
     def create_left_panel(self) -> QWidget:
         """Create the left panel with pin layout and controls"""
         panel = QWidget()
+        panel.setMinimumWidth(450)
+        panel.setMaximumWidth(550)
         layout = QVBoxLayout(panel)
+        layout.setSpacing(10)
+        layout.setContentsMargins(10, 10, 10, 10)
         
         # Pin name editor
         self.pin_editor = PinNameEditor(self.pin_configs)
         layout.addWidget(self.pin_editor)
         
-        # Pin layout
+        # Pin layout with scroll area
         pin_group = QGroupBox("DAQ Pin Layout (40-pin connector)")
-        pin_layout = QGridLayout(pin_group)
+        pin_group.setFont(QFont("Arial", 11, QFont.Bold))
+        pin_group_layout = QVBoxLayout(pin_group)
+        
+        # Create scroll area for pin layout
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        scroll_area.setMinimumHeight(400)
+        
+        # Pin container widget
+        pin_container = QWidget()
+        pin_layout = QGridLayout(pin_container)
+        pin_layout.setSpacing(5)
+        pin_layout.setContentsMargins(10, 10, 10, 10)
         
         # Create pin buttons in two columns (representing physical layout)
         for i, pin_config in enumerate(self.pin_configs):
@@ -1067,7 +1207,13 @@ class DAQMonitorApp(QMainWindow):
             row = (pin_config.pin_number - 1) // 2
             col = (pin_config.pin_number - 1) % 2
             pin_layout.addWidget(button, row, col)
-            
+        
+        # Set container size to accommodate all pins
+        pin_container.setMinimumSize(400, 20 * 35)  # 20 rows × 35px height per row
+        
+        scroll_area.setWidget(pin_container)
+        pin_group_layout.addWidget(scroll_area)
+        
         layout.addWidget(pin_group)
         layout.addStretch()  # Push everything to the top
         
