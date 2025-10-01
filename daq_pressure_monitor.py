@@ -24,7 +24,7 @@ from PyQt5.QtWidgets import (
     QGridLayout, QPushButton, QLineEdit, QLabel, QFrame, QScrollArea,
     QGroupBox, QCheckBox, QSpinBox, QComboBox, QMessageBox, QSplitter,
     QDialog, QDialogButtonBox, QDoubleSpinBox, QFormLayout, QFileDialog,
-    QToolButton, QMenu, QAction
+    QToolButton, QMenu, QAction, QRadioButton
 )
 from PyQt5.QtCore import QTimer, Qt, pyqtSignal, QThread, pyqtSlot
 from PyQt5.QtGui import QPalette, QColor, QFont
@@ -442,8 +442,8 @@ class CalibrationDialog(QDialog):
             is_calibrated=self.enable_calibration.isChecked()
         )
 
-class PinButton(QPushButton):
-    """Custom button representing a DAQ pin"""
+class PinButton(QRadioButton):
+    """Custom radio button representing a DAQ pin"""
     
     def __init__(self, pin_config: PinConfig):
         super().__init__()
@@ -459,35 +459,63 @@ class PinButton(QPushButton):
         
         if self.pin_config.is_analog_input:
             self.setStyleSheet("""
-                QPushButton {
+                QRadioButton {
                     background-color: #e8f4fd;
                     border: 2px solid #2196F3;
                     border-radius: 6px;
                     font-weight: bold;
                     font-size: 9px;
                     text-align: center;
+                    padding: 5px;
                 }
-                QPushButton:hover {
+                QRadioButton:hover {
                     background-color: #bbdefb;
                     border: 2px solid #1976D2;
                 }
-                QPushButton:pressed {
+                QRadioButton:pressed {
                     background-color: #90caf9;
+                }
+                QRadioButton::indicator {
+                    width: 15px;
+                    height: 15px;
+                    border-radius: 8px;
+                    border: 2px solid #2196F3;
+                    background-color: white;
+                    margin: 2px;
+                }
+                QRadioButton::indicator:checked {
+                    background-color: #2196F3;
+                    border: 2px solid #1976D2;
+                }
+                QRadioButton::indicator:hover {
+                    border: 2px solid #1976D2;
                 }
             """)
         else:
             self.setStyleSheet("""
-                QPushButton {
+                QRadioButton {
                     background-color: #f5f5f5;
                     border: 2px solid #9e9e9e;
                     border-radius: 6px;
                     font-size: 8px;
                     color: #666;
                     text-align: center;
+                    padding: 5px;
                 }
-                QPushButton:disabled {
+                QRadioButton:disabled {
                     background-color: #eeeeee;
                     color: #999;
+                }
+                QRadioButton::indicator {
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 6px;
+                    border: 2px solid #9e9e9e;
+                    background-color: #f5f5f5;
+                }
+                QRadioButton::indicator:disabled {
+                    background-color: #eeeeee;
+                    border: 2px solid #ccc;
                 }
             """)
             self.setEnabled(False)
@@ -498,7 +526,7 @@ class PinButton(QPushButton):
         if self.pin_config.is_analog_input:
             if monitoring:
                 self.setStyleSheet("""
-                    QPushButton {
+                    QRadioButton {
                         background-color: #4CAF50;
                         border: 2px solid #388E3C;
                         border-radius: 6px;
@@ -506,9 +534,25 @@ class PinButton(QPushButton):
                         font-size: 9px;
                         color: white;
                         text-align: center;
+                        padding: 5px;
                     }
-                    QPushButton:hover {
+                    QRadioButton:hover {
                         background-color: #66BB6A;
+                        border: 2px solid #2E7D32;
+                    }
+                    QRadioButton::indicator {
+                        width: 15px;
+                        height: 15px;
+                        border-radius: 8px;
+                        border: 2px solid white;
+                        background-color: #4CAF50;
+                        margin: 2px;
+                    }
+                    QRadioButton::indicator:checked {
+                        background-color: white;
+                        border: 2px solid #388E3C;
+                    }
+                    QRadioButton::indicator:hover {
                         border: 2px solid #2E7D32;
                     }
                 """)
@@ -518,9 +562,10 @@ class PinButton(QPushButton):
 class PinNameEditor(QWidget):
     """Widget for editing pin names"""
     
-    def __init__(self, pin_configs: List[PinConfig]):
+    def __init__(self, pin_configs: List[PinConfig], pin_buttons: Dict[int, 'PinButton'] = None):
         super().__init__()
         self.pin_configs = pin_configs
+        self.pin_buttons = pin_buttons  # Reference to pin buttons to update text
         self.name_editors: Dict[int, QLineEdit] = {}
         self.calibration_buttons: Dict[int, QPushButton] = {}
         self.setup_ui()
@@ -621,6 +666,10 @@ class PinNameEditor(QWidget):
         for pin_config in self.pin_configs:
             if pin_config.pin_number == pin_number:
                 pin_config.name = name
+                # Update the radio button text if buttons are available
+                if self.pin_buttons and pin_number in self.pin_buttons:
+                    button = self.pin_buttons[pin_number]
+                    button.setText(f"Pin {pin_config.pin_number}\n{pin_config.name}")
                 break
                 
     def open_calibration_dialog(self, pin_number: int):
@@ -1066,8 +1115,8 @@ class DAQMonitorApp(QMainWindow):
         """Create the top control bar with recording controls"""
         control_bar = QFrame()
         control_bar.setFrameStyle(QFrame.StyledPanel)
-        control_bar.setMaximumHeight(80)
-        control_bar.setMinimumHeight(70)
+        control_bar.setMaximumHeight(100)
+        control_bar.setMinimumHeight(90)
         
         layout = QHBoxLayout(control_bar)
         layout.setSpacing(15)
@@ -1189,18 +1238,18 @@ class DAQMonitorApp(QMainWindow):
         scroll_area.setWidgetResizable(True)
         scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        scroll_area.setMinimumHeight(400)
+        scroll_area.setMinimumHeight(100)
         
         # Pin container widget
         pin_container = QWidget()
         pin_layout = QGridLayout(pin_container)
-        pin_layout.setSpacing(5)
+        pin_layout.setSpacing(10)
         pin_layout.setContentsMargins(10, 10, 10, 10)
         
         # Create pin buttons in two columns (representing physical layout)
         for i, pin_config in enumerate(self.pin_configs):
             button = PinButton(pin_config)
-            button.clicked.connect(lambda checked, pin=pin_config.pin_number: self.toggle_pin(pin))
+            button.toggled.connect(lambda checked, pin=pin_config.pin_number: self.toggle_pin(pin, checked))
             self.pin_buttons[pin_config.pin_number] = button
             
             # Arrange in two columns
@@ -1210,6 +1259,9 @@ class DAQMonitorApp(QMainWindow):
         
         # Set container size to accommodate all pins
         pin_container.setMinimumSize(400, 20 * 35)  # 20 rows × 35px height per row
+        
+        # Now that pin buttons are created, pass reference to pin editor
+        self.pin_editor.pin_buttons = self.pin_buttons
         
         scroll_area.setWidget(pin_container)
         pin_group_layout.addWidget(scroll_area)
@@ -1223,25 +1275,26 @@ class DAQMonitorApp(QMainWindow):
         """Setup signal connections"""
         self.daq_simulator.data_ready.connect(self.update_plot_data)
         
-    def toggle_pin(self, pin_number: int):
+    def toggle_pin(self, pin_number: int, checked: bool):
         """Toggle monitoring for a specific pin"""
         button = self.pin_buttons[pin_number]
         pin_config = next(p for p in self.pin_configs if p.pin_number == pin_number)
         
         if not pin_config.is_analog_input:
+            button.setChecked(False)  # Uncheck if not analog input
             return
             
-        if button.is_monitoring:
-            # Stop monitoring this pin
-            button.set_monitoring(False)
-            self.daq_simulator.remove_pin(pin_number)
-            self.plot_widget.remove_channel(pin_number)
-        else:
+        if checked:
             # Start monitoring this pin
             button.set_monitoring(True)
             color = self.plot_widget.add_channel(pin_number, pin_config.name, pin_config)
             pin_config.color = color
             self.daq_simulator.add_pin(pin_number)
+        else:
+            # Stop monitoring this pin
+            button.set_monitoring(False)
+            self.daq_simulator.remove_pin(pin_number)
+            self.plot_widget.remove_channel(pin_number)
             
     def toggle_recording(self):
         """Toggle data recording on/off"""
@@ -1353,6 +1406,7 @@ class DAQMonitorApp(QMainWindow):
         # Reset all pin buttons
         for button in self.pin_buttons.values():
             button.set_monitoring(False)
+            button.setChecked(False)  # Uncheck radio buttons
             
         # Clear all plots
         for pin_number in list(self.plot_widget.plot_data.keys()):
