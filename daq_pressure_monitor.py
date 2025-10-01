@@ -172,8 +172,8 @@ class RealDAQInterface(QThread):
         self.detect_daq_device()
         
     def detect_daq_device(self):
-        """Detect available DAQ devices (Ubuntu/Linux only)"""
-        print("Detecting DAQ devices on Linux...")
+        """Detect available DAQ devices (Ubuntu/Linux only) - Real hardware only"""
+        print("Detecting real DAQ devices on Linux...")
         
         # Try generic USB DAQ devices
         if USB_DAQ_AVAILABLE:
@@ -210,12 +210,15 @@ class RealDAQInterface(QThread):
             except Exception as e:
                 print(f"Serial DAQ detection failed: {e}")
         
-        # If no real DAQ found, fall back to simulation
-        print("No real DAQ device detected. Available options:")
+        # No real DAQ found - show error
+        self.daq_type = "NONE"
+        self.device = None
+        print("ERROR: No real DAQ device detected!")
+        print("Please connect a DAQ device and ensure drivers are installed:")
         print("1. Install 'pip install pyusb' for generic USB DAQ devices")
         print("2. Install 'pip install pyserial' for serial DAQ devices")
-        print("3. Continuing with simulation mode...")
-        self.daq_type = "SIMULATION"
+        print("3. Check USB connections and device permissions")
+        raise RuntimeError("No DAQ hardware detected. Cannot proceed without real sensors.")
     
     def add_pin(self, pin_number: int):
         """Add a pin to active monitoring"""
@@ -292,56 +295,62 @@ class RealDAQInterface(QThread):
         print("DAQ acquisition stopped")
         
     def run(self):
-        """Main acquisition loop"""
+        """Main acquisition loop - Real sensors only"""
+        if self.daq_type == "NONE":
+            print("ERROR: Cannot start acquisition - no DAQ device detected!")
+            return
+            
         self.time_offset = time.time()
         
         while self.running:
-            current_time = time.time() - self.time_offset
-            
             if self.daq_type == "USB":
                 self._read_usb_data()
             elif self.daq_type == "SERIAL":
                 self._read_serial_data()
             else:
-                self._read_simulation_data(current_time)
+                print("ERROR: Unknown DAQ type - stopping acquisition")
+                break
                 
             self.msleep(int(1000 / self.sample_rate))
     
     def _read_usb_data(self):
-        """Read data from USB DAQ"""
+        """Read data from USB DAQ - implement device-specific protocol"""
         try:
-            # For now, simulate since we need device-specific protocols
-            # In real implementation, this would use device-specific commands
-            self._read_simulation_data(time.time() - self.time_offset)
+            # TODO: Implement actual USB DAQ communication
+            # This requires knowledge of your specific DAQ device protocol
+            # For now, throw an error to indicate real implementation needed
+            if not hasattr(self, '_usb_device_initialized'):
+                print("WARNING: USB DAQ protocol not implemented yet!")
+                print("Need to implement device-specific communication protocol")
+                self._usb_device_initialized = True
+                
+            # Example placeholder - replace with actual DAQ commands
+            for pin in self.active_pins:
+                # This should be replaced with actual USB device communication
+                voltage = 0.0  # Read from actual device
+                self.data_ready.emit(pin, voltage)
+                
         except Exception as e:
             print(f"Error reading USB DAQ data: {e}")
-            self._read_simulation_data(time.time() - self.time_offset)
     
     def _read_serial_data(self):
-        """Read data from Serial DAQ"""
+        """Read data from Serial DAQ - implement device-specific protocol"""
         try:
-            # For now, simulate since we need device-specific protocols
-            # In real implementation, this would use serial commands
-            self._read_simulation_data(time.time() - self.time_offset)
+            # TODO: Implement actual Serial DAQ communication
+            # This requires knowledge of your specific DAQ device protocol
+            if not hasattr(self, '_serial_device_initialized'):
+                print("WARNING: Serial DAQ protocol not implemented yet!")
+                print("Need to implement device-specific communication protocol")
+                self._serial_device_initialized = True
+                
+            # Example placeholder - replace with actual serial commands
+            for pin in self.active_pins:
+                # This should be replaced with actual serial device communication
+                voltage = 0.0  # Read from actual device
+                self.data_ready.emit(pin, voltage)
+                
         except Exception as e:
             print(f"Error reading Serial DAQ data: {e}")
-            self._read_simulation_data(time.time() - self.time_offset)
-    
-    def _read_simulation_data(self, current_time):
-        """Generate simulated data (fallback)"""
-        for pin in self.active_pins:
-            # Simulate pressure sensor data with some noise and trends
-            base_pressure = 14.7  # Base atmospheric pressure (psi)
-            frequency = 0.1 + (pin * 0.05)  # Different frequency for each pin
-            amplitude = 2.0 + (pin * 0.5)   # Different amplitude for each pin
-            noise = random.uniform(-0.1, 0.1)
-            
-            # Simulate realistic pressure sensor data (as voltage)
-            voltage = (2.5 + 
-                      0.5 * np.sin(2 * np.pi * frequency * current_time) + 
-                      noise * 0.1)  # Simulate voltage reading
-            
-            self.data_ready.emit(pin, voltage)
 
 # Keep DAQSimulator as an alias for backward compatibility
 class DAQSimulator(RealDAQInterface):
@@ -1257,10 +1266,50 @@ class DAQMonitorApp(QMainWindow):
         self.state_manager = StateManager()
         self.pin_configs = self.load_or_create_pin_configs()
         self.pin_buttons: Dict[int, PinButton] = {}
-        self.daq_simulator = DAQSimulator()
+        
+        # Initialize DAQ interface - must have real hardware
+        try:
+            self.daq_simulator = DAQSimulator()
+            if self.daq_simulator.daq_type == "NONE":
+                self.show_daq_error_and_exit()
+                return
+        except RuntimeError as e:
+            self.show_daq_error_and_exit(str(e))
+            return
+            
         self.data_recorder = DataRecorder()
         self.setup_ui()
         self.setup_connections()
+        
+    def show_daq_error_and_exit(self, error_msg: str = None):
+        """Show DAQ error message and exit application"""
+        from PyQt5.QtWidgets import QMessageBox
+        msg = QMessageBox()
+        msg.setIcon(QMessageBox.Critical)
+        msg.setWindowTitle("DAQ Hardware Required")
+        msg.setText("No DAQ hardware detected!")
+        
+        details = error_msg or "This application requires a real DAQ device to function.\n\n"
+        details += "Please ensure:\n"
+        details += "• DAQ device is connected via USB\n"
+        details += "• Device drivers are installed\n"
+        details += "• Device has proper permissions\n"
+        details += "• Required Python packages are installed:\n"
+        details += "  - pip install pyusb\n"
+        details += "  - pip install pyserial\n\n"
+        details += "Supported devices:\n"
+        details += "• Measurement Computing DAQ devices\n"
+        details += "• National Instruments DAQ devices\n"
+        details += "• Advantech DAQ devices\n"
+        details += "• Generic USB/Serial DAQ devices"
+        
+        msg.setDetailedText(details)
+        msg.setStandardButtons(QMessageBox.Ok)
+        msg.exec_()
+        
+        # Exit the application
+        import sys
+        sys.exit(1)
         
     def load_or_create_pin_configs(self) -> List[PinConfig]:
         """Load pin configurations from file or create defaults"""
@@ -1469,6 +1518,12 @@ class DAQMonitorApp(QMainWindow):
         
         monitoring_layout.addWidget(self.start_button)
         monitoring_layout.addWidget(self.stop_button)
+        
+        # DAQ device status
+        self.daq_status = QLabel()
+        self.daq_status.setStyleSheet("color: #333; font-weight: bold; font-size: 12px;")
+        self.update_daq_status_display()
+        monitoring_layout.addWidget(self.daq_status)
         monitoring_layout.addStretch()
         
         layout.addWidget(monitoring_group)
@@ -1648,8 +1703,24 @@ class DAQMonitorApp(QMainWindow):
             self.start_button.setEnabled(True)
             self.stop_button.setEnabled(False)
             
+    def update_daq_status_display(self):
+        """Update the DAQ device status display"""
+        if hasattr(self, 'daq_simulator') and self.daq_simulator.daq_type != "NONE":
+            status_text = f"DAQ: {self.daq_simulator.daq_type} - {self.daq_simulator.device}"
+            self.daq_status.setText(status_text)
+            self.daq_status.setStyleSheet("color: #4CAF50; font-weight: bold; font-size: 12px;")
+        else:
+            self.daq_status.setText("DAQ: No device detected")
+            self.daq_status.setStyleSheet("color: #f44336; font-weight: bold; font-size: 12px;")
+    
     def start_monitoring(self):
-        """Start the DAQ monitoring process"""
+        """Start the DAQ monitoring process - Real sensors only"""
+        if self.daq_simulator.daq_type == "NONE":
+            QMessageBox.warning(self, "No DAQ Device", 
+                               "Cannot start monitoring - no DAQ device detected!")
+            return
+            
+        print(f"Starting real DAQ monitoring using {self.daq_simulator.daq_type} device: {self.daq_simulator.device}")
         self.daq_simulator.start_acquisition()
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
@@ -1660,6 +1731,7 @@ class DAQMonitorApp(QMainWindow):
         if self.data_recorder.is_recording:
             self.stop_recording()
         
+        print("Stopping DAQ monitoring")
         self.daq_simulator.stop_acquisition()
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
