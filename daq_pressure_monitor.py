@@ -24,7 +24,7 @@ from dataclasses import dataclass, asdict
 
 # DAQ-specific imports (Ubuntu/Linux only)
 try:
-    from uldaq import get_daq_device_inventory, DaqDevice, AiInputMode, Range, AInFlag
+    from uldaq import get_daq_device_inventory, DaqDevice, AiInputMode, Range, AInFlag, InterfaceType
     ULDAQ_AVAILABLE = True
 except ImportError:
     ULDAQ_AVAILABLE = False
@@ -183,7 +183,7 @@ class RealDAQInterface(QThread):
         # Try uldaq (MCC devices)
         if ULDAQ_AVAILABLE:
             try:
-                devices = get_daq_device_inventory()
+                devices = get_daq_device_inventory(InterfaceType.USB)
                 if devices:
                     # Use the first available device
                     descriptor = devices[0]
@@ -1792,6 +1792,17 @@ class DAQMonitorApp(QMainWindow):
             return
             
         print(f"Starting real DAQ monitoring using {self.daq_simulator.daq_type} device: {self.daq_simulator.device}")
+        
+        # Restore plots for selected pins
+        for pin_number, button in self.pin_buttons.items():
+            if button.isChecked():
+                pin_config = next((p for p in self.pin_configs if p.pin_number == pin_number), None)
+                if pin_config and pin_config.is_analog_input:
+                    button.set_monitoring(True)
+                    color = self.plot_widget.add_channel(pin_number, pin_config.name, pin_config)
+                    pin_config.color = color
+                    self.daq_simulator.add_pin(pin_number)
+        
         self.daq_simulator.start_acquisition()
         self.start_button.setEnabled(False)
         self.stop_button.setEnabled(True)
@@ -1807,14 +1818,9 @@ class DAQMonitorApp(QMainWindow):
         self.start_button.setEnabled(True)
         self.stop_button.setEnabled(False)
         
-        # Reset all pin buttons
+        # Keep pin selections but stop monitoring state
         for button in self.pin_buttons.values():
-            button.set_monitoring(False)
-            button.setChecked(False)  # Uncheck radio buttons
-            
-        # Clear all plots
-        for pin_number in list(self.plot_widget.plot_data.keys()):
-            self.plot_widget.remove_channel(pin_number)
+            button.set_monitoring(False)  # Stop monitoring but keep checkbox selection
             
         # Reset recording status
         self.recording_status.setText("Ready to record")
