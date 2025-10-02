@@ -1,11 +1,69 @@
 #!/usr/bin/env python3
 """
-Test script to detect DAQ devices on Ubuntu
+Test script to detect MCC DAQ devices using uldaq on Ubuntu
 """
 
 import sys
 
-def test_usb_detection():
+def test_uldaq_detection():
+    """Test uldaq MCC device detection"""
+    print("=== MCC uldaq Device Detection Test ===")
+    
+    try:
+        from uldaq import get_daq_device_inventory, DaqDevice, AiInputMode, Range
+        print("✓ uldaq library available")
+        
+        # Get device inventory
+        devices = get_daq_device_inventory()
+        print(f"✓ Found {len(devices)} MCC DAQ devices")
+        
+        if devices:
+            for i, descriptor in enumerate(devices):
+                print(f"\nDevice {i+1}:")
+                print(f"  Product Name: {descriptor.product_name}")
+                print(f"  Product ID: {descriptor.product_id}")
+                print(f"  Interface Type: {descriptor.interface_type}")
+                print(f"  Device Type: {descriptor.dev_type}")
+                
+                # Try to connect and get info
+                try:
+                    device = DaqDevice(descriptor)
+                    device.connect()
+                    print(f"  Connection: ✓ Success")
+                    
+                    # Get AI info
+                    ai_device = device.get_ai_device()
+                    if ai_device:
+                        ai_info = ai_device.get_info()
+                        num_channels = ai_info.get_num_chans()
+                        ranges = ai_info.get_ranges(AiInputMode.SINGLE_ENDED)
+                        print(f"  Analog Inputs: {num_channels} channels")
+                        print(f"  Voltage Ranges: {ranges}")
+                        
+                        # Test reading a channel
+                        try:
+                            voltage = ai_device.a_in(0, AiInputMode.SINGLE_ENDED, Range.BIP10VOLTS)
+                            print(f"  Test Reading (CH0): {voltage:.3f} V")
+                        except Exception as e:
+                            print(f"  Test Reading: Failed - {e}")
+                    
+                    device.disconnect()
+                    
+                except Exception as e:
+                    print(f"  Connection: ✗ Failed - {e}")
+        else:
+            print("✗ No MCC DAQ devices detected")
+        
+        return len(devices) > 0
+        
+    except ImportError:
+        print("✗ uldaq not available")
+        print("  Install with: pip3 install uldaq")
+        print("  Also install C++ library: see install_ubuntu_daq.sh")
+        return False
+    except Exception as e:
+        print(f"✗ uldaq detection error: {e}")
+        return False
     """Test USB device detection"""
     print("=== USB Device Detection Test ===")
     
@@ -119,11 +177,18 @@ def test_permissions():
 
 def main():
     """Run all tests"""
-    print("DAQ Device Detection Test for Ubuntu")
-    print("=" * 50)
+    print("MCC DAQ Device Detection Test for Ubuntu (using uldaq)")
+    print("=" * 60)
     
     # Test basic library availability
     print("Testing library imports...")
+    try:
+        from uldaq import get_daq_device_inventory
+        print("✓ uldaq available")
+    except ImportError:
+        print("✗ uldaq missing - run: pip3 install uldaq")
+        print("  Also install C++ library with install_ubuntu_daq.sh")
+    
     try:
         import usb.core
         print("✓ pyusb available")
@@ -139,21 +204,64 @@ def main():
     print()
     
     # Run detection tests
+    uldaq_found = test_uldaq_detection()
     test_usb_detection()
     test_serial_detection()
     test_permissions()
     
-    print("\n" + "=" * 50)
-    print("If no DAQ devices were found:")
-    print("1. Make sure your DAQ device is connected via USB")
-    print("2. Run the installation script: bash install_ubuntu_daq.sh")
-    print("3. Reboot your system")
-    print("4. Run this test again")
-    print("")
-    print("Common DAQ device troubleshooting:")
-    print("- Check 'lsusb' output for your device")
-    print("- Check 'dmesg | tail' for USB connection messages")
-    print("- Try running with sudo for permission testing")
+    print("\n" + "=" * 60)
+    if uldaq_found:
+        print("✓ SUCCESS: MCC DAQ device(s) detected with uldaq!")
+        print("Your application should now work with real sensor data.")
+    else:
+        print("✗ No MCC DAQ devices found.")
+        print("Troubleshooting steps:")
+        print("1. Make sure your MCC DAQ device is connected via USB")
+        print("2. Run the installation script: bash install_ubuntu_daq.sh")
+        print("3. Reboot your system")
+        print("4. Run this test again")
+        print("5. Check 'lsusb | grep 09db' for MCC devices")
 
-if __name__ == "__main__":
-    main()
+def test_usb_detection():
+    """Test USB device detection for MCC devices"""
+    print("\n=== USB MCC Device Detection Test ===")
+    
+    try:
+        import usb.core
+        import usb.util
+        print("✓ pyusb library available")
+        
+        # Look specifically for MCC devices
+        mcc_vendor_ids = [0x09db, 0x0683]  # MCC vendor IDs
+        
+        found_mcc = False
+        for vendor_id in mcc_vendor_ids:
+            devices = usb.core.find(find_all=True, idVendor=vendor_id)
+            device_list = list(devices)
+            
+            if device_list:
+                print(f"✓ Found {len(device_list)} MCC USB device(s) with VID {vendor_id:04x}")
+                found_mcc = True
+                
+                for device in device_list:
+                    print(f"  Device: VID:{device.idVendor:04x} PID:{device.idProduct:04x}")
+                    try:
+                        manufacturer = usb.util.get_string(device, device.iManufacturer)
+                        product = usb.util.get_string(device, device.iProduct) 
+                        print(f"    Manufacturer: {manufacturer}")
+                        print(f"    Product: {product}")
+                    except:
+                        print("    (Could not read device strings)")
+        
+        if not found_mcc:
+            print("✗ No MCC devices found via USB")
+            print("  Check: lsusb | grep -E '09db|0683'")
+        
+    except ImportError:
+        print("✗ pyusb not available - install with: pip3 install pyusb")
+        return False
+    except Exception as e:
+        print(f"✗ USB detection error: {e}")
+        return False
+    
+    return True

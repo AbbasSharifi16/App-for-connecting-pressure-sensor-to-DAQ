@@ -24,6 +24,12 @@ from dataclasses import dataclass, asdict
 
 # DAQ-specific imports (Ubuntu/Linux only)
 try:
+    from uldaq import get_daq_device_inventory, DaqDevice, AiInputMode, Range, AInFlag
+    ULDAQ_AVAILABLE = True
+except ImportError:
+    ULDAQ_AVAILABLE = False
+
+try:
     import usb.core
     import usb.util
     USB_DAQ_AVAILABLE = True
@@ -155,7 +161,7 @@ class StateManager:
             return None
 
 class RealDAQInterface(QThread):
-    """Real DAQ interface for data acquisition"""
+    """Real DAQ interface using uldaq library for MCC devices"""
     
     data_ready = pyqtSignal(int, float)  # pin_number, value
     
@@ -167,45 +173,64 @@ class RealDAQInterface(QThread):
         self.time_offset = 0
         self.daq_type = None
         self.device = None
-        self.task = None
-        self.board_num = 0  # For MCC DAQ
+        self.daq_device = None  # uldaq device object
         self.detect_daq_device()
         
     def detect_daq_device(self):
-        """Detect available DAQ devices (Ubuntu/Linux only) - Real hardware only"""
-        print("Detecting real DAQ devices on Linux...")
+        """Detect available DAQ devices using uldaq library"""
+        print("Detecting MCC DAQ devices using uldaq...")
         
-        # Try generic USB DAQ devices
+        # Try uldaq (MCC devices)
+        if ULDAQ_AVAILABLE:
+            try:
+                devices = get_daq_device_inventory()
+                if devices:
+                    # Use the first available device
+                    descriptor = devices[0]
+                    self.daq_device = DaqDevice(descriptor)
+                    self.daq_device.connect()
+                    
+                    self.daq_type = "MCC_ULDAQ"
+                    self.device = f"MCC {descriptor.product_name} (ID: {descriptor.product_id})"
+                    print(f"Found MCC DAQ device: {self.device}")
+                    
+                    # Get AI subsystem info
+                    ai_device = self.daq_device.get_ai_device()
+                    if ai_device:
+                        ai_info = ai_device.get_info()
+                        num_channels = ai_info.get_num_chans()
+                        print(f"  Analog Input Channels: {num_channels}")
+                        print(f"  Supported ranges: {ai_info.get_ranges(AiInputMode.SINGLE_ENDED)}")
+                    return
+                else:
+                    print("No MCC DAQ devices found with uldaq")
+            except Exception as e:
+                print(f"uldaq detection failed: {e}")
+        
+        # Try generic USB DAQ devices (fallback)
         if USB_DAQ_AVAILABLE:
             try:
-                # Look for common DAQ device vendor IDs
-                daq_vendors = [
-                    0x0683,  # Measurement Computing
-                    0x3923,  # National Instruments  
-                    0x13d3,  # Advantech
-                    0x10c4,  # Silicon Labs (common USB-serial)
-                ]
-                
-                for vendor_id in daq_vendors:
-                    devices = usb.core.find(find_all=True, idVendor=vendor_id)
-                    for device in devices:
-                        self.daq_type = "USB"
-                        self.device = f"USB DAQ (VID: {vendor_id:04x}, PID: {device.idProduct:04x})"
-                        print(f"Found USB DAQ device: {self.device}")
-                        return
+                # Look for MCC vendor ID specifically
+                devices = usb.core.find(find_all=True, idVendor=0x09db)  # MCC vendor ID
+                for device in devices:
+                    self.daq_type = "USB_MCC"
+                    self.device = f"MCC USB Device (PID: {device.idProduct:04x})"
+                    print(f"Found MCC USB device: {self.device}")
+                    print("Note: Using generic USB - install uldaq for full functionality")
+                    return
             except Exception as e:
                 print(f"USB DAQ detection failed: {e}")
                 
-        # Try serial DAQ devices
+        # Try serial DAQ devices (fallback)
         if SERIAL_DAQ_AVAILABLE:
             try:
                 ports = serial.tools.list_ports.comports()
                 for port in ports:
-                    # Look for common DAQ device descriptions
-                    if any(keyword in port.description.lower() for keyword in ['daq', 'data acquisition', 'measurement']):
-                        self.daq_type = "SERIAL"
-                        self.device = f"Serial DAQ ({port.device})"
-                        print(f"Found Serial DAQ device: {self.device}")
+                    # Look for MCC or DAQ-related keywords
+                    if any(keyword in port.description.lower() for keyword in ['mcc', 'measurement computing', 'daq', 'data acquisition']):
+                        self.daq_type = "SERIAL_MCC"
+                        self.device = f"MCC Serial DAQ ({port.device})"
+                        print(f"Found MCC Serial device: {self.device}")
                         return
             except Exception as e:
                 print(f"Serial DAQ detection failed: {e}")
@@ -213,12 +238,12 @@ class RealDAQInterface(QThread):
         # No real DAQ found - show error
         self.daq_type = "NONE"
         self.device = None
-        print("ERROR: No real DAQ device detected!")
-        print("Please connect a DAQ device and ensure drivers are installed:")
-        print("1. Install 'pip install pyusb' for generic USB DAQ devices")
-        print("2. Install 'pip install pyserial' for serial DAQ devices")
+        print("ERROR: No MCC DAQ device detected!")
+        print("Please connect an MCC DAQ device and ensure uldaq is installed:")
+        print("1. Install uldaq: pip3 install uldaq")
+        print("2. Install MCC drivers: https://github.com/mccdaq/uldaq")
         print("3. Check USB connections and device permissions")
-        raise RuntimeError("No DAQ hardware detected. Cannot proceed without real sensors.")
+        raise RuntimeError("No MCC DAQ hardware detected. Cannot proceed without real sensors.")
     
     def add_pin(self, pin_number: int):
         """Add a pin to active monitoring"""
@@ -295,7 +320,7 @@ class RealDAQInterface(QThread):
         print("DAQ acquisition stopped")
         
     def run(self):
-        """Main acquisition loop - Real sensors only"""
+        """Main acquisition loop - Real MCC sensors using uldaq"""
         if self.daq_type == "NONE":
             print("ERROR: Cannot start acquisition - no DAQ device detected!")
             return
@@ -303,54 +328,100 @@ class RealDAQInterface(QThread):
         self.time_offset = time.time()
         
         while self.running:
-            if self.daq_type == "USB":
-                self._read_usb_data()
-            elif self.daq_type == "SERIAL":
-                self._read_serial_data()
+            if self.daq_type == "MCC_ULDAQ":
+                self._read_uldaq_data()
+            elif self.daq_type == "USB_MCC":
+                self._read_usb_mcc_data()
+            elif self.daq_type == "SERIAL_MCC":
+                self._read_serial_mcc_data()
             else:
                 print("ERROR: Unknown DAQ type - stopping acquisition")
                 break
                 
             self.msleep(int(1000 / self.sample_rate))
     
-    def _read_usb_data(self):
-        """Read data from USB DAQ - implement device-specific protocol"""
+    def _read_uldaq_data(self):
+        """Read data from MCC DAQ using uldaq library"""
         try:
-            # TODO: Implement actual USB DAQ communication
-            # This requires knowledge of your specific DAQ device protocol
-            # For now, throw an error to indicate real implementation needed
-            if not hasattr(self, '_usb_device_initialized'):
-                print("WARNING: USB DAQ protocol not implemented yet!")
-                print("Need to implement device-specific communication protocol")
-                self._usb_device_initialized = True
+            if not self.daq_device:
+                print("ERROR: No uldaq device available")
+                return
                 
-            # Example placeholder - replace with actual DAQ commands
+            ai_device = self.daq_device.get_ai_device()
+            if not ai_device:
+                print("ERROR: No analog input device available")
+                return
+                
+            # Read from each active pin
             for pin in self.active_pins:
-                # This should be replaced with actual USB device communication
-                voltage = 0.0  # Read from actual device
-                self.data_ready.emit(pin, voltage)
-                
+                try:
+                    # Convert pin number to channel (MCC channels are 0-based)
+                    channel = pin - 1
+                    
+                    # Read analog input - using ±10V range, single-ended mode
+                    voltage = ai_device.a_in(channel, AiInputMode.SINGLE_ENDED, Range.BIP10VOLTS, AInFlag.DEFAULT)
+                    
+                    # Emit the voltage reading
+                    self.data_ready.emit(pin, voltage)
+                    
+                except Exception as e:
+                    print(f"Error reading channel {pin}: {e}")
+                    # Continue with other channels
+                    
         except Exception as e:
-            print(f"Error reading USB DAQ data: {e}")
+            print(f"Error in uldaq data acquisition: {e}")
     
-    def _read_serial_data(self):
-        """Read data from Serial DAQ - implement device-specific protocol"""
+    def _read_usb_mcc_data(self):
+        """Read data from MCC DAQ using generic USB (limited functionality)"""
         try:
-            # TODO: Implement actual Serial DAQ communication
-            # This requires knowledge of your specific DAQ device protocol
-            if not hasattr(self, '_serial_device_initialized'):
-                print("WARNING: Serial DAQ protocol not implemented yet!")
-                print("Need to implement device-specific communication protocol")
-                self._serial_device_initialized = True
-                
-            # Example placeholder - replace with actual serial commands
+            # Generic USB implementation - limited without proper drivers
+            print("WARNING: Using generic USB mode - limited functionality")
+            print("Install uldaq library for full MCC device support")
+            
+            # For now, return zero values as placeholder
             for pin in self.active_pins:
-                # This should be replaced with actual serial device communication
-                voltage = 0.0  # Read from actual device
+                voltage = 0.0  # Placeholder - requires device-specific protocol
                 self.data_ready.emit(pin, voltage)
                 
         except Exception as e:
-            print(f"Error reading Serial DAQ data: {e}")
+            print(f"Error reading USB MCC data: {e}")
+    
+    def _read_serial_mcc_data(self):
+        """Read data from MCC DAQ using serial connection"""
+        try:
+            # Serial implementation for MCC devices with serial interface
+            print("WARNING: Serial MCC mode - requires device-specific protocol")
+            
+            # For now, return zero values as placeholder  
+            for pin in self.active_pins:
+                voltage = 0.0  # Placeholder - requires device-specific protocol
+                self.data_ready.emit(pin, voltage)
+                
+        except Exception as e:
+            print(f"Error reading Serial MCC data: {e}")
+            
+    def start_acquisition(self):
+        """Start data acquisition"""
+        if not self.running:
+            self.running = True
+            self.start()
+            print(f"Started DAQ acquisition using {self.daq_type}")
+    
+    def stop_acquisition(self):
+        """Stop data acquisition"""
+        if self.running:
+            self.running = False
+            self.wait()  # Wait for thread to finish
+            
+            # Disconnect uldaq device if connected
+            if self.daq_device and self.daq_type == "MCC_ULDAQ":
+                try:
+                    self.daq_device.disconnect()
+                    print("Disconnected from MCC DAQ device")
+                except:
+                    pass
+                    
+            print("Stopped DAQ acquisition")
 
 # Keep DAQSimulator as an alias for backward compatibility
 class DAQSimulator(RealDAQInterface):
