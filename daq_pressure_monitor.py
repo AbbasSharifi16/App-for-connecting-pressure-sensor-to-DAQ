@@ -188,24 +188,47 @@ class RealDAQInterface(QThread):
                     # Use the first available device
                     descriptor = devices[0]
                     self.daq_device = DaqDevice(descriptor)
+                    
+                    # Try to connect with timeout
+                    print(f"Attempting to connect to: {descriptor.product_name}")
                     self.daq_device.connect()
+                    
+                    # Verify connection by testing device access
+                    ai_device = self.daq_device.get_ai_device()
+                    if not ai_device:
+                        print("ERROR: Device connected but no analog input subsystem available")
+                        self.daq_device.disconnect()
+                        raise Exception("No analog input subsystem")
+                    
+                    # Test device responsiveness
+                    ai_info = ai_device.get_info()
+                    num_channels = ai_info.get_num_chans()
+                    supported_ranges = ai_info.get_ranges(AiInputMode.SINGLE_ENDED)
                     
                     self.daq_type = "MCC_ULDAQ"
                     self.device = f"MCC {descriptor.product_name} (ID: {descriptor.product_id})"
-                    print(f"Found MCC DAQ device: {self.device}")
+                    print(f"Successfully connected to MCC DAQ device: {self.device}")
+                    print(f"  Analog Input Channels: {num_channels}")
+                    print(f"  Supported ranges: {supported_ranges}")
                     
-                    # Get AI subsystem info
-                    ai_device = self.daq_device.get_ai_device()
-                    if ai_device:
-                        ai_info = ai_device.get_info()
-                        num_channels = ai_info.get_num_chans()
-                        print(f"  Analog Input Channels: {num_channels}")
-                        print(f"  Supported ranges: {ai_info.get_ranges(AiInputMode.SINGLE_ENDED)}")
+                    # Test a quick read to verify functionality
+                    try:
+                        test_voltage = ai_device.a_in(0, AiInputMode.SINGLE_ENDED, Range.BIP10VOLTS, AInFlag.DEFAULT)
+                        print(f"  Connection test successful - Channel 0 reading: {test_voltage:.3f}V")
+                    except Exception as test_e:
+                        print(f"  Warning: Connection test failed: {test_e}")
+                    
                     return
                 else:
                     print("No MCC DAQ devices found with uldaq")
             except Exception as e:
-                print(f"uldaq detection failed: {e}")
+                print(f"uldaq detection/connection failed: {e}")
+                if hasattr(self, 'daq_device') and self.daq_device:
+                    try:
+                        self.daq_device.disconnect()
+                    except:
+                        pass
+                    self.daq_device = None
         
         # Try generic USB DAQ devices (fallback)
         if USB_DAQ_AVAILABLE:
@@ -326,19 +349,39 @@ class RealDAQInterface(QThread):
             return
             
         self.time_offset = time.time()
+        consecutive_errors = 0
+        max_consecutive_errors = 5
+        
+        print(f"Starting acquisition loop for {self.daq_type} device...")
         
         while self.running:
-            if self.daq_type == "MCC_ULDAQ":
-                self._read_uldaq_data()
-            elif self.daq_type == "USB_MCC":
-                self._read_usb_mcc_data()
-            elif self.daq_type == "SERIAL_MCC":
-                self._read_serial_mcc_data()
-            else:
-                print("ERROR: Unknown DAQ type - stopping acquisition")
-                break
+            try:
+                if self.daq_type == "MCC_ULDAQ":
+                    self._read_uldaq_data()
+                    consecutive_errors = 0  # Reset error counter on successful read
+                elif self.daq_type == "USB_MCC":
+                    self._read_usb_mcc_data()
+                elif self.daq_type == "SERIAL_MCC":
+                    self._read_serial_mcc_data()
+                else:
+                    print("ERROR: Unknown DAQ type - stopping acquisition")
+                    break
+                    
+            except Exception as e:
+                consecutive_errors += 1
+                print(f"Acquisition error {consecutive_errors}/{max_consecutive_errors}: {e}")
+                
+                if consecutive_errors >= max_consecutive_errors:
+                    print("ERROR: Too many consecutive errors - stopping acquisition")
+                    break
+                
+                # Wait a bit longer on errors
+                self.msleep(1000)
+                continue
                 
             self.msleep(int(1000 / self.sample_rate))
+            
+        print("Acquisition loop ended")
     
     def _read_uldaq_data(self):
         """Read data from MCC DAQ using uldaq library"""
@@ -347,16 +390,43 @@ class RealDAQInterface(QThread):
                 print("ERROR: No uldaq device available")
                 return
                 
-            ai_device = self.daq_device.get_ai_device()
-            if not ai_device:
-                print("ERROR: No analog input device available")
-                return
+            # Check if device is still connected
+            try:
+                # Try to access device info to verify connection
+                ai_device = self.daq_device.get_ai_device()
+                if not ai_device:
+                    print("ERROR: No analog input device available")
+                    return
+                    
+                # Verify device is responsive
+                ai_info = ai_device.get_info()
+                
+            except Exception as conn_e:
+                print(f"ERROR: Device connection lost: {conn_e}")
+                print("Attempting to reconnect...")
+                try:
+                    # Try to reconnect
+                    self.daq_device.connect()
+                    ai_device = self.daq_device.get_ai_device()
+                    if not ai_device:
+                        print("ERROR: Failed to reconnect - no analog input device")
+                        return
+                except Exception as reconn_e:
+                    print(f"ERROR: Reconnection failed: {reconn_e}")
+                    return
                 
             # Read from each active pin
             for pin in self.active_pins:
                 try:
                     # Convert pin number to channel (MCC channels are 0-based)
                     channel = pin - 1
+                    
+                    # Validate channel number
+                    ai_info = ai_device.get_info()
+                    max_channels = ai_info.get_num_chans()
+                    if channel >= max_channels:
+                        print(f"ERROR: Channel {channel} (pin {pin}) exceeds device limit of {max_channels}")
+                        continue
                     
                     # Read analog input - using ±10V range, single-ended mode
                     voltage = ai_device.a_in(channel, AiInputMode.SINGLE_ENDED, Range.BIP10VOLTS, AInFlag.DEFAULT)
@@ -365,11 +435,14 @@ class RealDAQInterface(QThread):
                     self.data_ready.emit(pin, voltage)
                     
                 except Exception as e:
-                    print(f"Error reading channel {pin}: {e}")
-                    # Continue with other channels
+                    print(f"Error reading channel {pin} (DAQ channel {channel}): {e}")
+                    # Don't continue with other channels if there's a connection issue
+                    if "connection" in str(e).lower() or "73" in str(e):
+                        print("Connection error detected - stopping acquisition")
+                        break
                     
         except Exception as e:
-            print(f"Error in uldaq data acquisition: {e}")
+            print(f"Critical error in uldaq data acquisition: {e}")
     
     def _read_usb_mcc_data(self):
         """Read data from MCC DAQ using generic USB (limited functionality)"""
@@ -403,6 +476,27 @@ class RealDAQInterface(QThread):
     def start_acquisition(self):
         """Start data acquisition"""
         if not self.running:
+            # Verify device connection before starting
+            if self.daq_type == "MCC_ULDAQ" and self.daq_device:
+                try:
+                    # Test connection
+                    ai_device = self.daq_device.get_ai_device()
+                    if ai_device:
+                        ai_info = ai_device.get_info()
+                        print(f"Device verified: {ai_info.get_num_chans()} channels available")
+                    else:
+                        print("ERROR: Cannot access analog input device")
+                        return
+                except Exception as e:
+                    print(f"ERROR: Device verification failed: {e}")
+                    print("Attempting to reconnect...")
+                    try:
+                        self.daq_device.connect()
+                        print("Reconnection successful")
+                    except Exception as reconnect_e:
+                        print(f"Reconnection failed: {reconnect_e}")
+                        return
+            
             self.running = True
             self.start()
             print(f"Started DAQ acquisition using {self.daq_type}")
@@ -416,10 +510,11 @@ class RealDAQInterface(QThread):
             # Disconnect uldaq device if connected
             if self.daq_device and self.daq_type == "MCC_ULDAQ":
                 try:
+                    print("Disconnecting from MCC DAQ device...")
                     self.daq_device.disconnect()
                     print("Disconnected from MCC DAQ device")
-                except:
-                    pass
+                except Exception as e:
+                    print(f"Warning: Error during disconnect: {e}")
                     
             print("Stopped DAQ acquisition")
 
